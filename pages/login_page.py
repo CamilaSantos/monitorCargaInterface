@@ -18,10 +18,10 @@ class LoginPage:
     self.protheus_frame: FrameLocator = page.frame_locator("wa-webview iframe")
 
     # 3. TELA DE LOGIN (PO-UI LOGIN)
-    self.input_usuario = self.protheus_frame.locator("input[name='login']")
-    self.input_senha = self.protheus_frame.locator("input[type='password']")
+    self.input_usuario = self.protheus_frame.locator("po-login[name='login'] input")
+    self.input_senha = self.protheus_frame.locator("po-password[name='password'] input, input[type='password']")
     self.btn_entrar = self.protheus_frame.locator(
-        "button.po-button:has-text('Entrar'), button[type='submit']"
+        "po-button[p-label='Entrar'] button, button:has-text('Entrar')"
     )
 
     # 4. TELA DE PARÂMETROS / AMBIENTE (PÓS-LOGIN)
