@@ -21,3 +21,12 @@ def credenciais_protheus():
       "ambiente": os.getenv("PROTHEUS_AMBIENTE"),
       "data_base": "hoje",
   }
+
+@pytest.fixture(autouse=True)
+def configurar_timeout_global(page):
+  """Aplica um timeout global de 60 segundos para todas as páginas e seletores do projeto."""
+  # Define o tempo de espera padrão para interações (click, fill, wait_for, etc.)
+  page.set_default_timeout(60000)
+
+  # Define o tempo de espera padrão para navegações de página (goto)
+  page.set_default_navigation_timeout(60000)

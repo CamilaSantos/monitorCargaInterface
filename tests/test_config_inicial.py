@@ -17,3 +17,5 @@ def test_login_protheus(page, protheus_url, credenciais_protheus):
       filial=credenciais_protheus["filial"],
       ambiente=credenciais_protheus["ambiente"],
   )
+  
+  
