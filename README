@@ -1,0 +1,19 @@
+# 1. Criar o ambiente virtual na raiz do projeto
+python -m venv venv
+
+# 2. Ativar o ambiente virtual (Windows PowerShell)
+.\venv\Scripts\activate
+
+# 3. Atualizar o gerenciador de pacotes
+python -m pip install --upgrade pip
+
+# 4. Instalar todas as bibliotecas do projeto
+pip install playwright pytest pytest-playwright python-dotenv
+
+# 5. Instala todas as bibliotecas listadas no requirements.txt
+pip install -r requirements.txt
+
+# 6. Baixar e instalar os navegadores controlados pelo Playwright
+playwright install chromium
+
+

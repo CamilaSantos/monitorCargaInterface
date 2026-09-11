@@ -1,0 +1,7 @@
+pandas
+watchdog
+openpyxl
+playwright
+pytest-playwright
+pytest
+python-dotenv

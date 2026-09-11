@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório Consolidado de Extração</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+  <style>
+    {{ESTILOS_CSS}}
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Top Toolbar -->
+  <div class="top-toolbar">
+    <button type="button" class="theme-toggle-btn" onclick="alternarTema()">
+      <span class="material-symbols-outlined" id="theme-icon">light_mode</span>
+      <span id="theme-text">Claro</span>
+    </button>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">
+      <h1>Relatório Consolidado de Extração e Compactação</h1>
+      <p id="subtitulo-header">Análise de Performance Individual de Banco de Dados</p>
+    </div>
+    <div class="winner-badge">
+      <span>BANCO DE DADOS TESTADO</span>
+      <strong id="w-badge-text">--</strong>
+    </div>
+  </div>
+
+  <!-- Resumo Executivo -->
+  <div class="section-title">Resumo dos Resultados</div>
+  <div class="grid-cards">
+    <div class="card">
+      <h3>Banco de Dados</h3>
+      <div class="main-val" style="color: var(--mssql-color);" id="c-banco-val">--</div>
+      <div class="sub-text" id="c-banco-sub">Execução de bateria de testes individuais.</div>
+    </div>
+
+    <div class="card">
+      <h3>Tempo Total Acumulado</h3>
+      <div class="main-val" style="color: var(--mssql-color);" id="c-tempo-val">--</div>
+      <div class="sub-text">Soma do tempo de todos os cenários executados.</div>
+    </div>
+
+    <div class="card">
+      <h3>Throughput Médio</h3>
+      <div class="main-val" style="color: var(--mssql-color);" id="c-throughput-val">--</div>
+      <div class="sub-text">Média de vazão dos dados (registros/segundo).</div>
+    </div>
+
+    <div class="card">
+      <h3>Gargalo Principal</h3>
+      <div class="main-val">Banco de Dados</div>
+      <div class="sub-text">A extração do banco consumiu maior fatia do tempo comparado à compactação ZIP.</div>
+    </div>
+  </div>
+
+  <!-- Hardware & Specs -->
+  <div class="section-title">Ambiente de Teste & Consumo de Hardware</div>
+  <div class="specs-grid">
+    <div class="machine-specs">
+      <div style="font-size: 13px; font-weight: bold; margin-bottom: 6px; color: var(--text-primary); display: flex; align-items: center;">
+        <span class="material-symbols-outlined" style="color: var(--mssql-color);">desktop_windows</span>
+        Máquina do Teste
+      </div>
+      <div><strong>S.O.:</strong> <span id="hw-so">-</span></div>
+      <div><strong>CPU:</strong> <span id="hw-cpu">-</span></div>
+      <div><strong>RAM:</strong> <span id="hw-ram">-</span></div>
+      <div><strong>Disco Total:</strong> <span id="hw-disco-total">-</span></div>
+      <div><strong>Disco Livre (Início/Fim):</strong> <span id="hw-disco-livre" style="color: var(--mssql-color); font-weight: bold;">- / -</span></div>
+    </div>
+
+    <div class="card">
+      <div style="display: flex; justify-content: space-around; text-align: center; margin-top: 4px;">
+        <div>
+          <small style="color: var(--text-secondary);">Pico de CPU</small>
+          <div style="font-size: 20px; font-weight: bold; color: var(--mssql-color); margin-top: 2px;" id="hw-cpu-pico">0%</div>
+        </div>
+        <div>
+          <small style="color: var(--text-secondary);">RAM Média Consumida</small>
+          <div style="font-size: 20px; font-weight: bold; color: var(--text-primary); margin-top: 2px;" id="hw-ram-media">0 GB</div>
+        </div>
+        <div>
+          <small style="color: var(--text-secondary);">Cenários Testados</small>
+          <div style="font-size: 20px; font-weight: bold; color: var(--mssql-color); margin-top: 2px;" id="hw-total-cenarios">0</div>
+        </div>
+      </div>
+      <div class="sub-text" style="margin-top: 12px; text-align: center; display: flex; align-items: center; justify-content: center;">
+        <span class="material-symbols-outlined" style="font-size: 14px; color: var(--mssql-color);">push_pin</span>
+        <strong>Conclusão:</strong> Oscilações normais durante alta concorrência. Hardware atendeu à demanda.
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráfico com Abas de Navegação -->
+  <div class="section-title">Tempo Total por Cenário (Segundos - Quanto menor, melhor)</div>
+  
+  <div class="tabs-container">
+    <button type="button" class="tab-btn active" onclick="filtrarGrupo('PEQUENO', this, event)">Pequeno (30k-99k)</button>
+    <button type="button" class="tab-btn" onclick="filtrarGrupo('MEDIO', this, event)">Médio (100k-499k)</button>
+    <button type="button" class="tab-btn" onclick="filtrarGrupo('GRANDE', this, event)">Grande (500k-999k)</button>
+    <button type="button" class="tab-btn" onclick="filtrarGrupo('XGRANDE', this, event)">Extra Grande (1M+)</button>
+    <button type="button" class="tab-btn highlight" onclick="filtrarGrupo('SINGLE', this, event)">
+      <span class="material-symbols-outlined">bolt</span> Apenas SINGLE
+    </button>
+    <button type="button" class="tab-btn highlight" onclick="filtrarGrupo('MULTI', this, event)">
+      <span class="material-symbols-outlined">rocket_launch</span> Apenas MULTI
+    </button>
+    <button type="button" class="tab-btn" onclick="filtrarGrupo('TODOS', this, event)">Todos</button>
+  </div>
+
+  <div class="card" style="margin-bottom: 24px; padding: 18px 10px;">
+    <div class="chart-scroll-wrapper">
+      <div id="chartContainer" class="chart-inner-container">
+        <div id="chartIndividual"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Evidências -->
+  <div class="section-title">Evidências e Relatórios Individuais na Pasta Histórico</div>
+  <div class="evidence-grid" id="containerBotoes"></div>
+
+</div>
+
+<script>
+  const payload = {{DADOS_JSON}};
+  const comparativos = payload.comparativos;
+  const hardware = payload.hardware;
+  const resumoGlobal = payload.resumo_global;
+
+  // Preenchimento do Cabeçalho e Resumo Executivo
+  document.getElementById('w-badge-text').innerText = resumoGlobal.banco_vencedor;
+  document.getElementById('c-banco-val').innerText = resumoGlobal.banco_vencedor;
+  document.getElementById('subtitulo-header').innerText = `Análise de Performance Individual | ${resumoGlobal.banco_vencedor}`;
+  
+  document.getElementById('c-tempo-val').innerText = `${resumoGlobal.tempo_total_acumulado_s}s`;
+  document.getElementById('c-throughput-val').innerText = `${resumoGlobal.throughput_medio_reg_sec.toLocaleString('pt-BR')} reg/s`;
+
+  // Preenchimento de Hardware
+  document.getElementById('hw-so').innerText = hardware.so;
+  document.getElementById('hw-cpu').innerText = hardware.cpu;
+  document.getElementById('hw-ram').innerText = hardware.ram;
+  document.getElementById('hw-disco-total').innerText = hardware.disco_total;
+
+  const inicioDisco = hardware.disco_livre_inicio !== '-' ? `${hardware.disco_livre_inicio} GB` : '-';
+  const fimDisco = hardware.disco_livre_fim !== '-' ? `${hardware.disco_livre_fim} GB` : '-';
+  document.getElementById('hw-disco-livre').innerText = `${inicioDisco} / ${fimDisco}`;
+
+  document.getElementById('hw-cpu-pico').innerText = `${hardware.banco_unico.cpu_pico_max_pct}%`;
+  document.getElementById('hw-ram-media').innerText = `${hardware.banco_unico.ram_media_gb} GB`;
+  document.getElementById('hw-total-cenarios').innerText = comparativos.length;
+
+  let chartInstance = null;
+
+  function alternarTema() {
+    const htmlElem = document.documentElement;
+    const isDark = htmlElem.getAttribute('data-theme') === 'dark';
+    const novoTema = isDark ? 'light' : 'dark';
+    
+    htmlElem.setAttribute('data-theme', novoTema);
+    document.getElementById('theme-icon').innerText = isDark ? 'dark_mode' : 'light_mode';
+    document.getElementById('theme-text').innerText = isDark ? 'Escuro' : 'Claro';
+
+    if (chartInstance) {
+      chartInstance.updateOptions({ theme: { mode: novoTema } });
+    }
+  }
+
+  function renderizarDashboard(dados) {
+    dados.sort((a, b) => a.id_cenario - b.id_cenario);
+
+    const containerBotoes = document.getElementById('containerBotoes');
+    containerBotoes.innerHTML = '';
+    
+    dados.forEach((d) => {
+      const linkValido = d.relatorio_html && d.relatorio_html !== '-';
+      const attrRelatorio = linkValido ? `href="${d.relatorio_html}" target="_blank" class="btn-evidence btn-evidence-mssql"` : `class="btn-evidence btn-evidence-disabled"`;
+
+      containerBotoes.innerHTML += `
+        <div class="card" style="padding: 12px;">
+          <div style="font-weight: bold; font-size: 13px; margin-bottom: 6px;">Cenário ${d.id_cenario} (${d.categoria} | ${d.modo})</div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">
+            ${d.registros.toLocaleString('pt-BR')} reg | T:${d.threads} | P:${d.pageSize}
+          </div>
+          <div class="evidence-buttons-group">
+            <a ${attrRelatorio}>
+              <span class="material-symbols-outlined" style="font-size: 14px;">description</span> Ver Relatório Individual
+            </a>
+          </div>
+        </div>`;
+    });
+
+    const chartInner = document.getElementById('chartContainer');
+    if (dados.length > 6) {
+      chartInner.style.width = `${dados.length * 85}px`;
+    } else {
+      chartInner.style.width = '100%';
+    }
+
+    const temaAtual = document.documentElement.getAttribute('data-theme') || 'dark';
+
+    const options = {
+      series: [
+        { name: 'Tempo (s)', data: dados.map(d => d.tempo) }
+      ],
+      chart: { type: 'bar', height: 340, toolbar: { show: false }, background: 'transparent' },
+      theme: { mode: temaAtual },
+      colors: ['#0284c7'],
+      plotOptions: { bar: { borderRadius: 4, columnWidth: dados.length > 15 ? '50%' : '30%' } },
+      dataLabels: { enabled: true, formatter: (val) => val + "s" },
+      xaxis: { categories: dados.map((d) => `Cenário ${d.id_cenario}`) },
+      grid: { borderColor: temaAtual === 'dark' ? '#334155' : '#e2e8f0' },
+      tooltip: {
+        shared: true,
+        intersect: false,
+        custom: function({ series, dataPointIndex }) {
+          const info = dados[dataPointIndex];
+          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+          const bgTooltip = isDark ? '#0f172a' : '#ffffff';
+          const textTooltip = isDark ? '#f8fafc' : '#0f172a';
+          const borderTooltip = isDark ? '#334155' : '#e2e8f0';
+
+          return `
+            <div style="padding: 12px; background: ${bgTooltip}; border: 1px solid #0284c7; border-radius: 6px; font-size: 12px; color: ${textTooltip}; line-height: 1.5; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+              <strong style="color: #0284c7;">Cenário ${info.id_cenario} (${info.categoria} | ${info.modo})</strong><br/>
+              <div style="margin: 4px 0; border-bottom: 1px solid ${borderTooltip};"></div>
+              • <strong>Processos (${info.processos}):</strong> ${info.processos_nomes}<br/>
+              • <strong>Threads:</strong> ${info.threads} | <strong>PageSize:</strong> ${info.pageSize}<br/>
+              • <strong>Total Registros:</strong> ${info.registros.toLocaleString('pt-BR')}<br/>
+              <div style="margin: 4px 0; border-bottom: 1px solid ${borderTooltip};"></div>
+              • <strong>Pacotes ZIP Gerados:</strong> ${info.total_zips} pacote(s)<br/>
+              • <strong>Tamanho TOTAL dos ZIPs:</strong> ${info.volume_zips_mb} MB<br/>
+              • <strong>Consumo de Disco (C:):</strong> ${info.disco_consumido_mb} MB<br/>
+              <div style="margin: 4px 0; border-bottom: 1px solid ${borderTooltip};"></div>
+              • <span style="color:#0284c7">Tempo Utilizado:</span> <strong>${info.tempo}s</strong><br/>
+              • <span style="color:#0284c7">Throughput:</span> <strong>${info.throughput} reg/s</strong>
+            </div>
+          `;
+        }
+      }
+    };
+
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new ApexCharts(document.querySelector("#chartIndividual"), options);
+    chartInstance.render();
+  }
+
+  function filtrarGrupo(filtro, elemento, event) {
+    if (event) event.preventDefault();
+
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    elemento.classList.add('active');
+
+    if (filtro === 'TODOS') {
+      renderizarDashboard([...comparativos]);
+    } else if (filtro === 'SINGLE' || filtro === 'MULTI') {
+      const filtrados = comparativos.filter(d => d.modo === filtro);
+      renderizarDashboard(filtrados);
+    } else {
+      const filtrados = comparativos.filter(d => d.categoria === filtro);
+      renderizarDashboard(filtrados);
+    }
+  }
+
+  // Inicialização
+  filtrarGrupo('PEQUENO', document.querySelector('.tab-btn.active'));
+</script>
+
+</body>
+</html>

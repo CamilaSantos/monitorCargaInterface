@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório Consolidado - MSSQL vs Oracle</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+  <style>
+    {{ESTILOS_CSS}}
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- PONTO 1: Botão no topo direito sem colar na borda superior -->
+  <div class="top-toolbar">
+    <button type="button" class="theme-toggle-btn" onclick="alternarTema()">
+      <span class="material-symbols-outlined" id="theme-icon">light_mode</span>
+      <span id="theme-text">Claro</span>
+    </button>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">
+      <h1>Relatório Consolidado de Extração e Compactação</h1>
+      <p>Análise de Performance Pareada | Microsoft SQL Server vs. Oracle Database</p>
+    </div>
+    <div class="winner-badge">
+      <span>MELHOR PERFORMANCE</span>
+      <strong id="w-badge-text">--</strong>
+    </div>
+  </div>
+
+  <!-- Resumo Executivo -->
+  <div class="section-title">Resumo dos Resultados</div>
+  <div class="grid-cards">
+    <div class="card">
+      <h3>Geral (Todos os Testes)</h3>
+      <div class="main-val" style="color: var(--mssql-color);" id="c-geral-val">--</div>
+      <div class="sub-text" id="c-geral-sub">Mais veloz nos cenários comparados.</div>
+    </div>
+
+    <div class="card">
+      <h3>Desempenho SINGLE</h3>
+      <div class="main-val" style="color: var(--mssql-color);" id="c-single-val">--</div>
+      <div class="sub-text">Liderou nos testes com 1 processo e 1 thread.</div>
+    </div>
+
+    <div class="card">
+      <h3>Desempenho MULTI</h3>
+      <div class="main-val" style="color: var(--mssql-color);" id="c-multi-val">--</div>
+      <div class="sub-text">Ganhou mais margem sob múltiplos processos/threads.</div>
+    </div>
+
+    <div class="card">
+      <h3>Gargalo Principal</h3>
+      <div class="main-val">Banco de Dados</div>
+      <div class="sub-text">A extração do banco consumiu maior fatia do tempo comparado à compactação ZIP.</div>
+    </div>
+  </div>
+
+  <!-- Hardware & Specs -->
+  <div class="section-title">Ambiente de Teste & Consumo de Hardware</div>
+  <div class="specs-grid">
+    <div class="machine-specs">
+      <div style="font-size: 13px; font-weight: bold; margin-bottom: 6px; color: var(--text-primary); display: flex; align-items: center;">
+        <span class="material-symbols-outlined" style="color: var(--mssql-color);">desktop_windows</span>
+        Máquina do Teste
+      </div>
+      <div><strong>S.O.:</strong> <span id="hw-so">-</span></div>
+      <div><strong>CPU:</strong> <span id="hw-cpu">-</span></div>
+      <div><strong>RAM:</strong> <span id="hw-ram">-</span></div>
+      <div><strong>Disco Total:</strong> <span id="hw-disco-total">-</span></div>
+      <div><strong>Disco Livre (Início/Fim):</strong> <span id="hw-disco-livre" style="color: var(--mssql-color); font-weight: bold;">- / -</span></div>
+    </div>
+
+    <div class="card">
+      <div style="display: flex; justify-content: space-around; text-align: center; margin-top: 4px;">
+        <div>
+          <small style="color: var(--text-secondary);">Pico CPU (MSSQL)</small>
+          <div style="font-size: 20px; font-weight: bold; color: var(--mssql-color); margin-top: 2px;" id="hw-cpu-mssql">0%</div>
+        </div>
+        <div>
+          <small style="color: var(--text-secondary);">Pico CPU (Oracle)</small>
+          <div style="font-size: 20px; font-weight: bold; color: var(--oracle-color); margin-top: 2px;" id="hw-cpu-oracle">0%</div>
+        </div>
+        <div>
+          <small style="color: var(--text-secondary);">RAM Média</small>
+          <div style="font-size: 20px; font-weight: bold; margin-top: 2px;" id="hw-ram-comparativo">0 GB vs 0 GB</div>
+        </div>
+      </div>
+      <div class="sub-text" style="margin-top: 12px; text-align: center; display: flex; align-items: center; justify-content: center;">
+        <span class="material-symbols-outlined" style="font-size: 14px; color: var(--mssql-color);">push_pin</span>
+        <strong>Conclusão:</strong> Oscilações normais durante alta concorrência. Hardware atendeu à demanda.
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráfico Único com Abas de Navegação -->
+  <div class="section-title">Comparativo de Tempo Total por Cenário (Segundos - Quanto menor, melhor)</div>
+  
+  <div class="tabs-container">
+    <button type="button" class="tab-btn active" onclick="filtrarGrupo('PEQUENO', this, event)">Pequeno (30k-99k)</button>
+    <button type="button" class="tab-btn" onclick="filtrarGrupo('MEDIO', this, event)">Médio (100k-499k)</button>
+    <button type="button" class="tab-btn" onclick="filtrarGrupo('GRANDE', this, event)">Grande (500k-999k)</button>
+    <button type="button" class="tab-btn" onclick="filtrarGrupo('XGRANDE', this, event)">Extra Grande (1M+)</button>
+    <button type="button" class="tab-btn highlight" onclick="filtrarGrupo('SINGLE', this, event)">
+      <span class="material-symbols-outlined">bolt</span> Apenas SINGLE
+    </button>
+    <button type="button" class="tab-btn highlight" onclick="filtrarGrupo('MULTI', this, event)">
+      <span class="material-symbols-outlined">rocket_launch</span> Apenas MULTI
+    </button>
+    <button type="button" class="tab-btn" onclick="filtrarGrupo('TODOS', this, event)">Todos</button>
+  </div>
+
+  <div class="card" style="margin-bottom: 24px; padding: 18px 10px;">
+    <div class="chart-scroll-wrapper">
+      <div id="chartContainer" class="chart-inner-container">
+        <div id="chartPareado"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Evidências do Grupo Selecionado -->
+  <div class="section-title">Evidências e Relatórios Individuais na Pasta Histórico</div>
+  <div class="evidence-grid" id="containerBotoes"></div>
+
+</div>
+
+<script>
+  const payload = {{DADOS_JSON}};
+  const comparativos = payload.comparativos;
+  const hardware = payload.hardware;
+  const resumoGlobal = payload.resumo_global;
+
+  // Preenchimento Dinâmico do Resumo
+  document.getElementById('w-badge-text').innerText = `${resumoGlobal.banco_vencedor} (+${resumoGlobal.vantagem_media_pct}% Mais Rápido)`;
+  document.getElementById('c-geral-val').innerText = `${resumoGlobal.banco_vencedor}`;
+  document.getElementById('c-geral-sub').innerText = `Vantagem média de ${resumoGlobal.vantagem_media_pct}% nos cenários comparados.`;
+  document.getElementById('c-single-val').innerText = `${resumoGlobal.banco_vencedor} (+${resumoGlobal.vantagem_single_pct}%)`;
+  document.getElementById('c-multi-val').innerText = `${resumoGlobal.banco_vencedor} (+${resumoGlobal.vantagem_multi_pct}%)`;
+
+  // PONTO 4: Dados da máquina preenchidos com "-" se nulos
+  document.getElementById('hw-so').innerText = hardware.so;
+  document.getElementById('hw-cpu').innerText = hardware.cpu;
+  document.getElementById('hw-ram').innerText = hardware.ram;
+  document.getElementById('hw-disco-total').innerText = hardware.disco_total;
+
+  const inicioDisco = hardware.disco_livre_inicio !== '-' ? `${hardware.disco_livre_inicio} GB` : '-';
+  const fimDisco = hardware.disco_livre_fim !== '-' ? `${hardware.disco_livre_fim} GB` : '-';
+  document.getElementById('hw-disco-livre').innerText = `${inicioDisco} / ${fimDisco}`;
+
+  document.getElementById('hw-cpu-mssql').innerText = `${hardware.mssql.cpu_pico_max_pct}%`;
+  document.getElementById('hw-cpu-oracle').innerText = `${hardware.oracle.cpu_pico_max_pct}%`;
+  document.getElementById('hw-ram-comparativo').innerText = `${hardware.mssql.ram_media_gb} GB vs ${hardware.oracle.ram_media_gb} GB`;
+
+  let chartInstance = null;
+
+  function alternarTema() {
+    const htmlElem = document.documentElement;
+    const isDark = htmlElem.getAttribute('data-theme') === 'dark';
+    const novoTema = isDark ? 'light' : 'dark';
+    
+    htmlElem.setAttribute('data-theme', novoTema);
+    document.getElementById('theme-icon').innerText = isDark ? 'dark_mode' : 'light_mode';
+    document.getElementById('theme-text').innerText = isDark ? 'Escuro' : 'Claro';
+
+    if (chartInstance) {
+      chartInstance.updateOptions({ theme: { mode: novoTema } });
+    }
+  }
+
+  function renderizarDashboard(dados) {
+    // PONTO 5: Garante a ordenação rigorosa por id_cenario (1, 2, 3...)
+    dados.sort((a, b) => a.id_cenario - b.id_cenario);
+
+    const containerBotoes = document.getElementById('containerBotoes');
+    containerBotoes.innerHTML = '';
+    
+    dados.forEach((d) => {
+      const linkMssqlValido = d.relatorio_html_mssql && d.relatorio_html_mssql !== '-';
+      const linkOracleValido = d.relatorio_html_oracle && d.relatorio_html_oracle !== '-';
+
+      const attrMssql = linkMssqlValido ? `href="${d.relatorio_html_mssql}" target="_blank" class="btn-evidence btn-evidence-mssql"` : `class="btn-evidence btn-evidence-disabled"`;
+      const attrOracle = linkOracleValido ? `href="${d.relatorio_html_oracle}" target="_blank" class="btn-evidence btn-evidence-oracle"` : `class="btn-evidence btn-evidence-disabled"`;
+
+      containerBotoes.innerHTML += `
+        <div class="card" style="padding: 12px;">
+          <div style="font-weight: bold; font-size: 13px; margin-bottom: 6px;">Cenário ${d.id_cenario} (${d.categoria} | ${d.modo})</div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">
+            ${d.registros.toLocaleString('pt-BR')} reg | T:${d.threads} | P:${d.pageSize}
+          </div>
+          <div class="evidence-buttons-group">
+            <a ${attrMssql}>
+              <span class="material-symbols-outlined" style="font-size: 14px;">description</span> Relatório MSSQL
+            </a>
+            <a ${attrOracle}>
+              <span class="material-symbols-outlined" style="font-size: 14px;">description</span> Relatório Oracle
+            </a>
+          </div>
+        </div>`;
+    });
+
+    const chartInner = document.getElementById('chartContainer');
+    if (dados.length > 6) {
+      chartInner.style.width = `${dados.length * 85}px`;
+    } else {
+      chartInner.style.width = '100%';
+    }
+
+    const temaAtual = document.documentElement.getAttribute('data-theme') || 'dark';
+
+    const options = {
+      series: [
+        { name: 'MSSQL (s)', data: dados.map(d => d.tempo_mssql) },
+        { name: 'Oracle (s)', data: dados.map(d => d.tempo_oracle) }
+      ],
+      chart: { type: 'bar', height: 340, toolbar: { show: false }, background: 'transparent' },
+      theme: { mode: temaAtual },
+      colors: ['#0284c7', '#dc2626'],
+      plotOptions: { bar: { borderRadius: 4, columnWidth: dados.length > 15 ? '60%' : '40%' } },
+      dataLabels: { enabled: true, formatter: (val) => val + "s" },
+      xaxis: { categories: dados.map((d) => `Cenário ${d.id_cenario}`) },
+      grid: { borderColor: temaAtual === 'dark' ? '#334155' : '#e2e8f0' },
+      tooltip: {
+        shared: true,
+        intersect: false,
+        custom: function({ series, dataPointIndex }) {
+          const info = dados[dataPointIndex];
+          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+          const bgTooltip = isDark ? '#0f172a' : '#ffffff';
+          const textTooltip = isDark ? '#f8fafc' : '#0f172a';
+          const borderTooltip = isDark ? '#334155' : '#e2e8f0';
+
+          return `
+            <div style="padding: 12px; background: ${bgTooltip}; border: 1px solid #0284c7; border-radius: 6px; font-size: 12px; color: ${textTooltip}; line-height: 1.5; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+              <strong style="color: #0284c7;">Cenário ${info.id_cenario} (${info.categoria} | ${info.modo})</strong><br/>
+              <div style="margin: 4px 0; border-bottom: 1px solid ${borderTooltip};"></div>
+              • <strong>Processos (${info.processos}):</strong> ${info.processos_nomes}<br/>
+              • <strong>Threads:</strong> ${info.threads} | <strong>PageSize:</strong> ${info.pageSize}<br/>
+              • <strong>Total Registros:</strong> ${info.registros.toLocaleString('pt-BR')}<br/>
+              <div style="margin: 4px 0; border-bottom: 1px solid ${borderTooltip};"></div>
+              • <strong>Pacotes ZIP Gerados:</strong> ${info.total_zips} pacote(s)<br/>
+              • <strong>Tamanho TOTAL dos ZIPs:</strong> ${info.volume_zips_mb} MB<br/>
+              • <strong>Consumo de Disco (C:):</strong> ${info.disco_consumido_mb} MB<br/>
+              <div style="margin: 4px 0; border-bottom: 1px solid ${borderTooltip};"></div>
+              • <span style="color:#0284c7">MSSQL:</span> <strong>${info.tempo_mssql}s</strong><br/>
+              • <span style="color:#dc2626">Oracle:</span> <strong>${info.tempo_oracle}s</strong>
+            </div>
+          `;
+        }
+      }
+    };
+
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new ApexCharts(document.querySelector("#chartPareado"), options);
+    chartInstance.render();
+  }
+
+  function filtrarGrupo(filtro, elemento, event) {
+    if (event) event.preventDefault();
+
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    elemento.classList.add('active');
+
+    if (filtro === 'TODOS') {
+      renderizarDashboard([...comparativos]);
+    } else if (filtro === 'SINGLE' || filtro === 'MULTI') {
+      const filtrados = comparativos.filter(d => d.modo === filtro);
+      renderizarDashboard(filtrados);
+    } else {
+      const filtrados = comparativos.filter(d => d.categoria === filtro);
+      renderizarDashboard(filtrados);
+    }
+  }
+
+  // Inicialização
+  filtrarGrupo('PEQUENO', document.querySelector('.tab-btn.active'));
+</script>
+
+</body>
+</html>

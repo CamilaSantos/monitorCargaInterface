@@ -1,0 +1,24 @@
+# Ambiente virtual
+venv/
+.venv/
+env/
+
+# Arquivos de credenciais e ambiente local
+.env
+
+# Cache e arquivos temporários do Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Arquivos gerados por testes e relatórios
+relatorio_consolidado.html
+historicos/
+*.json
+*.log
+
+# Arquivos do sistema e IDE
+.vscode/
+.idea/
+.DS_Store

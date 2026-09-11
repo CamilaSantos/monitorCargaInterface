@@ -1,0 +1,295 @@
+/* ==========================================================================
+   SISTEMA DE DESIGN UNIFICADO - RELATÓRIOS API
+   ========================================================================== */
+
+/* Variáveis para Tema Claro (Padrão) */
+:root {
+  --bg-primary: #f8fafc;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-sub-bg: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  
+  --mssql-color: #0284c7;
+  --mssql-bg: rgba(2, 132, 199, 0.1);
+  --oracle-color: #dc2626;
+  --oracle-bg: rgba(220, 38, 38, 0.1);
+  
+  --accent-green: #16a34a;
+  --accent-green-bg: #dcfce7;
+  --accent-yellow: #d97706;
+  --accent-yellow-bg: #fef3c7;
+  --accent-red: #dc2626;
+  --accent-red-bg: #fee2e2;
+
+  --table-header-bg: #f8fafc;
+  --table-border: #e2e8f0;
+  --table-hover: #f1f5f9;
+}
+
+/* Variáveis para Tema Escuro */
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --card-bg: #1e293b;
+  --card-border: #334155;
+  --card-sub-bg: rgba(51, 65, 85, 0.4);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  
+  --mssql-color: #38bdf8;
+  --mssql-bg: rgba(56, 189, 248, 0.12);
+  --oracle-color: #f87171;
+  --oracle-bg: rgba(248, 113, 113, 0.12);
+  
+  --accent-green: #10b981;
+  --accent-green-bg: rgba(16, 185, 129, 0.15);
+  --accent-yellow: #f59e0b;
+  --accent-yellow-bg: rgba(245, 158, 11, 0.15);
+  --accent-red: #ef4444;
+  --accent-red-bg: rgba(239, 68, 68, 0.15);
+
+  --table-header-bg: #0f172a;
+  --table-border: #334155;
+  --table-hover: rgba(51, 65, 85, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 30px;
+  transition: background-color 0.3s, color 0.3s;
+  line-height: 1.5;
+}
+
+.container { 
+  max-width: 1280px; 
+  margin: 0 auto; 
+}
+
+.material-symbols-outlined {
+  font-size: 18px;
+  vertical-align: middle;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.display-none {
+  display: none !important;
+}
+
+/* --- CABEÇALHOS --- */
+.header, .report-header {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.header-title h1 { margin: 0; font-size: 22px; color: var(--text-primary); font-weight: 700; }
+.header-title p { margin: 6px 0 0 0; color: var(--text-secondary); font-size: 14px; }
+
+.header-actions, .header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* --- BADGES DE STATUS E BANCO --- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.badge-success { background: var(--accent-green-bg); color: var(--accent-green); border: 1px solid var(--accent-green); }
+.badge-warning { background: var(--accent-yellow-bg); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
+.badge-error { background: var(--accent-red-bg); color: var(--accent-red); border: 1px solid var(--accent-red); }
+
+.highlight-mssql { color: var(--mssql-color) !important; font-weight: 700; }
+.highlight-oracle { color: var(--oracle-color) !important; font-weight: 700; }
+.highlight-default { color: var(--text-primary) !important; font-weight: 700; }
+.highlight-proc { color: var(--mssql-color); font-weight: 600; }
+
+/* --- BOTÕES --- */
+.theme-toggle-btn {
+  background: var(--card-sub-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+.theme-toggle-btn:hover {
+  border-color: var(--mssql-color);
+  color: var(--mssql-color);
+}
+
+.winner-badge {
+  background: var(--accent-green-bg);
+  border: 1px solid var(--accent-green);
+  padding: 10px 18px;
+  border-radius: 8px;
+  text-align: right;
+}
+.winner-badge span { display: block; font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; }
+.winner-badge strong { font-size: 16px; color: var(--accent-green); }
+
+/* --- CARDS & ESTRUTURA --- */
+.section-title {
+  font-size: 16px;
+  margin: 28px 0 14px 0;
+  color: var(--text-primary);
+  border-left: 4px solid var(--mssql-color);
+  padding-left: 10px;
+  font-weight: 700;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.card h2 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.section-icon { color: var(--mssql-color); }
+
+/* Grid de Especificações */
+.env-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.env-column h3 { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px 0; display: flex; align-items: center; font-weight: 700; }
+.env-subgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.env-item { background: var(--card-sub-bg); padding: 8px 12px; border-radius: 6px; font-size: 12px; border: 1px solid var(--card-border); }
+.env-item.span-2 { grid-column: span 2; }
+.env-item .lbl { color: var(--text-secondary); display: block; font-size: 11px; margin-bottom: 2px; }
+.env-item .val { font-weight: 600; color: var(--text-primary); }
+
+/* Grid de Métricas / KPIs */
+.grid-cards, .metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.metric-card {
+  background: var(--card-sub-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.metric-icon { font-size: 28px !important; color: var(--mssql-color); }
+.metric-data { display: flex; flex-direction: column; }
+.metric-lbl { font-size: 11px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; }
+.metric-val { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+
+.metric-split .split-vals { font-size: 12px; display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.metric-split .sub-lbl { color: var(--text-secondary); margin-right: 4px; }
+.metric-split .sub-val { font-weight: 600; color: var(--text-primary); }
+
+/* Hardware Specs */
+.specs-grid { display: grid; grid-template-columns: 1.2fr 2fr; gap: 16px; margin-bottom: 24px; }
+.machine-specs { background: var(--card-sub-bg); border: 1px dashed var(--card-border); border-radius: 8px; padding: 14px; font-size: 12px; line-height: 1.6; }
+.machine-specs strong { color: var(--mssql-color); }
+
+/* --- ABAS DE NAVEGAÇÃO --- */
+.tabs-container { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab-btn {
+  background: var(--card-bg); 
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary); 
+  padding: 8px 16px; 
+  border-radius: 6px;
+  cursor: pointer; 
+  font-size: 13px; 
+  font-weight: 600; 
+  transition: all 0.2s;
+  display: inline-flex; 
+  align-items: center;
+}
+.tab-btn:hover { border-color: var(--mssql-color); color: var(--mssql-color); }
+.tab-btn.active { background: var(--mssql-color); color: #ffffff; border-color: var(--mssql-color); }
+.tab-btn.highlight { border-color: #a855f7; color: #7e22ce; background: var(--card-sub-bg); }
+.tab-btn.highlight.active { background: #9333ea; color: #ffffff; border-color: #9333ea; }
+
+/* --- GRÁFICOS --- */
+.canvas-container { position: relative; height: 320px; width: 100%; }
+.chart-scroll-wrapper { width: 100%; overflow-x: auto; overflow-y: hidden; }
+.chart-scroll-wrapper::-webkit-scrollbar { height: 8px; }
+.chart-scroll-wrapper::-webkit-scrollbar-track { background: var(--bg-primary); border-radius: 4px; }
+.chart-scroll-wrapper::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 4px; }
+.chart-scroll-wrapper::-webkit-scrollbar-thumb:hover { background: var(--mssql-color); }
+.chart-inner-container { min-width: 100%; }
+
+/* --- TABELAS --- */
+.table-container { width: 100%; overflow-x: auto; border: 1px solid var(--table-border); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+th { background-color: var(--table-header-bg); color: var(--text-secondary); padding: 12px 14px; font-weight: 600; border-bottom: 1px solid var(--table-border); }
+td { padding: 12px 14px; border-bottom: 1px solid var(--table-border); color: var(--text-primary); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background-color: var(--table-hover); }
+
+/* --- EVIDÊNCIAS E BOTÕES --- */
+.evidence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-top: 12px; }
+.evidence-buttons-group { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.btn-evidence {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+  width: 100%;
+  box-sizing: border-box;
+}
+.btn-evidence:hover { transform: translateY(-1px); filter: brightness(1.15); }
+.btn-evidence-mssql { background-color: var(--mssql-bg); border: 1px solid var(--mssql-color); color: var(--mssql-color); }
+.btn-evidence-oracle { background-color: var(--oracle-bg); border: 1px solid var(--oracle-color); color: var(--oracle-color); }
+.btn-evidence-disabled { opacity: 0.35; pointer-events: none; background-color: rgba(100, 116, 139, 0.1); border: 1px solid #64748b; color: #94a3b8; cursor: not-allowed; }
+
+/* --- RODAPÉ --- */
+.report-footer { text-align: center; font-size: 12px; color: var(--text-secondary); margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--card-border); }
