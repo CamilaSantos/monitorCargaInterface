@@ -18,19 +18,13 @@ class LoginPage:
     self.protheus_frame: FrameLocator = page.frame_locator("wa-webview iframe")
 
     # 3. TELA DE LOGIN (PO-UI LOGIN)
-    # Seletores encadeados para garantir o foco na tag <input> dentro de componentes PO-UI
-    self.input_usuario = self.protheus_frame.locator(
-        "po-login[name='login'] input, po-login input, input[name='login'],"
-        " input[type='text']"
+    self.input_usuario = self.protheus_frame.get_by_role(
+        "textbox", name="Insira seu usuário"
     )
-    self.input_senha = self.protheus_frame.locator(
-        "po-password[name='password'] input, po-password input,"
-        " input[type='password']"
+    self.input_senha = self.protheus_frame.get_by_role(
+        "textbox", name="Insira sua senha"
     )
-    self.btn_entrar = self.protheus_frame.locator(
-        "po-button[p-label='Entrar'] button, po-button button,"
-        " button:has-text('Entrar')"
-    )
+    self.btn_entrar = self.protheus_frame.get_by_role("button", name="Entrar")
 
     # 4. TELA DE PARÂMETROS / AMBIENTE (PÓS-LOGIN)
     self.input_data_base = self.protheus_frame.locator(
@@ -70,16 +64,10 @@ class LoginPage:
     self.page.wait_for_selector("wa-webview iframe", state="attached")
 
   def realizar_login(self, usuario: str, senha: str):
-    """Ação da 2ª Tela (Login e Senha com garantia de foco em PO-UI)."""
+    """Ação da 2ª Tela (Login e Senha)."""
     self.input_usuario.wait_for(state="visible")
-
-    # Garante o foco do cursor no componente antes de injetar os dados
-    self.input_usuario.click()
     self.input_usuario.fill(usuario)
-
-    self.input_senha.click()
     self.input_senha.fill(senha)
-
     self.btn_entrar.click()
 
   def selecionar_parametros_ambiente(
@@ -99,25 +87,21 @@ class LoginPage:
           else data_base
       )
       self.input_data_base.wait_for(state="visible")
-      self.input_data_base.click()
       self.input_data_base.fill(data_para_preencher)
       self.page.keyboard.press("Tab")
 
     if grupo:
       self.input_grupo.wait_for(state="visible")
-      self.input_grupo.click()
       self.input_grupo.fill(grupo)
       self.page.keyboard.press("Tab")
 
     if filial:
       self.input_filial.wait_for(state="visible")
-      self.input_filial.click()
       self.input_filial.fill(filial)
       self.page.keyboard.press("Tab")
 
     if ambiente:
       self.input_ambiente.wait_for(state="visible")
-      self.input_ambiente.click()
       self.input_ambiente.fill(ambiente)
       self.page.keyboard.press("Tab")
 
