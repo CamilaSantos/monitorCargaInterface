@@ -64,11 +64,17 @@ class LoginPage:
     self.page.wait_for_selector("wa-webview iframe", state="attached")
 
   def realizar_login(self, usuario: str, senha: str):
-    """Ação da 2ª Tela (Login e Senha)."""
-    self.input_usuario.wait_for(state="visible")
-    self.input_usuario.fill(usuario)
-    self.input_senha.fill(senha)
-    self.btn_entrar.click()
+      """Ação com digitação simulada caractere por caractere."""
+      self.input_usuario.wait_for(state="visible")
+
+      # Clica para dar foco e digita como um usuário real
+      self.input_usuario.click()
+      self.input_usuario.press_sequentially(usuario, delay=50)
+
+      self.input_senha.click()
+      self.input_senha.press_sequentially(senha, delay=50)
+
+      self.btn_entrar.click()
 
   def selecionar_parametros_ambiente(
       self,
