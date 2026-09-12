@@ -56,25 +56,25 @@ class LoginPage:
     self.btn_ok_modulo.click()
 
     # Aguarda o carregamento do iframe do Protheus
-    self.page.wait_for_selector("iframe", state="attached")
+    self.page.wait_for_selector("iframe", state="attached",timeout=30000)
 
   def realizar_login(self, usuario: str, senha: str):
-    # 1. Captura a referência do iframe ativo do wa-webview
+    # 1. Pega o iframe do wa-webview ativo
     frame_login = self.page.locator("wa-webview").last.frame_locator("iframe")
 
-    # 2. Localiza o input nativo dentro do componente po-login do PO-UI
+    # 2. Mapeia o input do usuário
     input_usuario = frame_login.locator("po-login[name='login'] input")
-    input_senha = frame_login.locator("po-password[name='password'] input")
-    btn_entrar = frame_login.locator("po-button button")
 
-    # 3. Espera explicitamente o Angular renderizar o campo na tela
-    input_usuario.wait_for(state="visible", timeout=30000)
+    # 3. ESPERA EXPLÍCITA: Aguarda o frame sair do branco e renderizar o input (timeout de 60s)
+    input_usuario.wait_for(state="visible", timeout=60000)
 
-    # 4. Preenche os dados
+    # 4. Ações de preenchimento (executadas no segundo exato em que o campo surge)
     input_usuario.fill(usuario)
+
+    input_senha = frame_login.locator("po-password[name='password'] input")
     input_senha.fill(senha)
 
-    # 5. Clica no botão Entrar
+    btn_entrar = frame_login.locator("po-button button")
     btn_entrar.click()
 
   def selecionar_parametros_ambiente(
