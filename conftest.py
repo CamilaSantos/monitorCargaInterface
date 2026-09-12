@@ -21,6 +21,14 @@ def credenciais_protheus():
       "ambiente": os.getenv("PROTHEUS_AMBIENTE"),
       "data_base": "hoje",
   }
+  
+@pytest.fixture(scope="session")
+def dados_navegacao_protheus():
+  return {
+      "menu_principal": os.getenv("PROTHEUS_MENU_ATUALIZACAO"),
+      "submenu": os.getenv("PROTHEUS_SUBMENU_SH"),  # Ajuste conforme seu menu real
+      "rotina_destino": os.getenv("PROTHEUS_SUBMENU_ROTINA_SHT"),  # Nome exato da rotina
+  }
 
 @pytest.fixture(autouse=True)
 def configurar_timeout_global(page):

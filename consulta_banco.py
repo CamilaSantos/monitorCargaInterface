@@ -8,7 +8,7 @@ CONFIGS_BANCO_PADRAO = {
         "tipo": "MSSQL",
         "host": "localhost",
         "porta": "1433",
-        "database": "PROTHEUS",
+        "database": "TESTE",
         "usuario": "sa",
         "senha": "******",
     },

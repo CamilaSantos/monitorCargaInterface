@@ -102,7 +102,7 @@ class RoboMonitorRecursos(threading.Thread):
     def __init__(self, nome_servico="appserver.exe", intervalo=0.2):
         super().__init__()
         self.intervalo = intervalo
-        self.nome_servico = nome_servico.strip().lower()
+        self.nome_servico = "appserver.exe"
         self._rodando = True
         self.amostras = []
 
@@ -524,7 +524,7 @@ def executar_orquestrador(
     posicao_log_inicio = obter_ponteiro_fim_log(CAMINHO_CONSOLE_LOG)
 
     # Inicia robô de monitoramento de recursos
-    robo_recursos = RoboMonitorRecursos(nome_servico=nome_servico, intervalo=0.2)
+    robo_recursos = RoboMonitorRecursos(nome_servico="appserver.exe", intervalo=0.2)
     robo_recursos.start()
 
     tempo_inicio = time.time()
