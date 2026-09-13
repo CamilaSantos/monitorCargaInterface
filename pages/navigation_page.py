@@ -1,5 +1,9 @@
 import re
-from playwright.sync_api import FrameLocator, Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import (
+    FrameLocator,
+    Page,
+    TimeoutError as PlaywrightTimeoutError,
+)
 
 
 class NavigationPage:
@@ -13,67 +17,61 @@ class NavigationPage:
     return self.page.locator("wa-webview").last.frame_locator("iframe")
 
   def navegar(self, *niveis_menu: str):
-    """Percorre N níveis de menu e fornece um diagnóstico claro caso ocorra erro.
-
-    Exemplo: navegar("Atualizações", "Faturamento", "Pedidos de Venda")
-    """
+    """Navega dinamicamente pelos Web Components <wa-menu-item> do Protheus SmartClient HTML."""
     print(f"\n[NAVEGAÇÃO] Iniciando sequência de menus: {list(niveis_menu)}")
 
-    # 1. DIAGNÓSTICO DO IFRAME / CARREGAMENTO INICIAL
+    # 1. ESPERA CRÍTICA: Aguarda a tag <wa-menu> estar anexada no DOM do iFrame
     try:
-      print(
-          "[NAVEGAÇÃO] Aguardando o carregamento da estrutura do iFrame do"
-          " Protheus..."
-      )
-      self.protheus_frame.locator("body").wait_for(
-          state="attached", timeout=30000
+      self.protheus_frame.locator("wa-menu").first.wait_for(
+          state="attached", timeout=60000
       )
     except PlaywrightTimeoutError:
       raise RuntimeError(
-          "❌ FALHA DE CARREGAMENTO: O iFrame do Protheus não carregou a tempo "
-          "após confirmar o ambiente. A página ainda está processando o login?"
+          "❌ FALHA DE CARREGAMENTO: O componente <wa-menu> não foi encontrado"
+          " no iFrame. O ambiente terminou de carregar?"
       )
 
-    # Pausa de estabilização pós-login
     self.page.wait_for_timeout(2000)
 
-    # 2. ITERAÇÃO SOBRE OS NÍVEIS DE MENU
+    # 2. ITERAÇÃO SOBRE OS MENUS
     for nivel_idx, item_nome in enumerate(niveis_menu, start=1):
       if not item_nome or not item_nome.strip():
         continue
 
       nome_limpo = item_nome.strip()
-      padrao_exato = re.compile(rf"^{re.escape(nome_limpo)}$")
+      padrao_exato = re.compile(rf"^{re.escape(nome_limpo)}$", re.IGNORECASE)
 
-      # Localizador para o texto exato do menu
-      item_locator = self.protheus_frame.locator(
-          "cwa-menu-item span.caption, .tmenu-item-text", has_text=padrao_exato
+      # Mapeamento com base no Inspetor de Elementos das imagens:
+      # Busca por <wa-menu-item> verificando o span interior com title ou texto exato
+      item_locator = self.protheus_frame.locator("wa-menu-item").filter(
+          has=self.protheus_frame.locator(
+              "span.caption", has_text=padrao_exato
+          )
       ).first
 
-      # A) Verificar se o elemento existe no DOM (Mesmo que invisível)
+      # Tentativa alternativa se a busca combinada não encontrar de primeira: busca direta na tag ou atributo title
+      if item_locator.count() == 0:
+        item_locator = self.protheus_frame.locator(
+            "wa-menu-item span.caption", has_text=padrao_exato
+        ).first
+
       try:
         item_locator.wait_for(state="attached", timeout=15000)
       except PlaywrightTimeoutError:
-        # Pega os menus que estão visíveis na tela para nos ajudar no diagnóstico
         menus_visiveis = (
-            self.protheus_frame.locator(
-                "cwa-menu-item span.caption, .tmenu-item-text"
-            )
+            self.protheus_frame.locator("wa-menu-item span.caption")
             .all_inner_texts(timeout=3000)
-            if self.protheus_frame.locator(
-                "cwa-menu-item span.caption, .tmenu-item-text"
-            )
+            if self.protheus_frame.locator("wa-menu-item span.caption")
             .first.is_visible()
             else []
         )
 
         raise RuntimeError(
             f"❌ MENU NÃO ENCONTRADO no Nível {nivel_idx}: '{nome_limpo}'.\n"
-            f"   - O texto no .env está exatamente igual ao menu do Protheus (acentos, maiúsculas)?\n"
+            f"   - Verifique acentuação e grafia no .env.\n"
             f"   - Menus atualmente visíveis na tela: {menus_visiveis}"
         )
 
-      # B) Verificar se o elemento está Visível e Clicável
       try:
         item_locator.scroll_into_view_if_needed()
         item_locator.wait_for(state="visible", timeout=10000)
@@ -82,12 +80,9 @@ class NavigationPage:
       except PlaywrightTimeoutError:
         raise RuntimeError(
             f"⚠️ MENU LOCALIZADO MAS NÃO FICOU VISÍVEL/CLICÁVEL no Nível"
-            f" {nivel_idx}: '{nome_limpo}'.\n"
-            "   - É muito provável que a página ainda esteja carregando a animação ou"
-            " exista um modal/overlay na frente."
+            f" {nivel_idx}: '{nome_limpo}'."
         )
 
-      # Pausa necessária para a animação de abertura do submenu
       self.page.wait_for_timeout(1500)
 
     print("[NAVEGAÇÃO] Sequência de menus concluída com sucesso!\n")
