@@ -69,7 +69,4 @@ class EnvironmentPage:
 
     self.btn_entrar_ambiente.click()
 
-    # ESPERA CRÍTICA: Aguarda a renderização do menu principal pós-login
-    self.protheus_frame.locator("cwa-menu, .tmenu").first.wait_for(
-        state="visible", timeout=60000
-    )
+   self.btn_entrar_ambiente.wait_for(state="detached", timeout=60000)
