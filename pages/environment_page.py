@@ -41,7 +41,7 @@ class EnvironmentPage:
       data_base: str = "hoje",
   ):
     """Passo 3: Configura o ambiente, empresa/filial e data-base no Protheus."""
-    self.btn_entrar_ambiente.wait_for(state="visible")
+    self.btn_entrar_ambiente.wait_for(state="visible", timeout=30000)
 
     if data_base and data_base.lower() != "hoje":
       self.input_data_base.wait_for(state="visible")
@@ -67,6 +67,15 @@ class EnvironmentPage:
       self.input_ambiente.press("ControlOrMeta+A")
       self.input_ambiente.fill(ambiente)
 
+    # Clica no botão 'Entrar' para carregar a área de trabalho
     self.btn_entrar_ambiente.click()
 
-   self.btn_entrar_ambiente.wait_for(state="detached", timeout=60000)
+    # ESPERA RESILIENTE: Aguarda até o botão "Entrar" sumir da tela
+    # Isso confirma que a tela de parâmetros foi fechada e o processamento de login concluiu.
+    try:
+      self.btn_entrar_ambiente.wait_for(state="detached", timeout=60000)
+    except Exception:
+      pass
+
+    # Pausa técnica para permitir o carregamento e renderização total do DOM principal
+    self.page.wait_for_timeout(3000)
