@@ -67,15 +67,14 @@ class EnvironmentPage:
       self.input_ambiente.press("ControlOrMeta+A")
       self.input_ambiente.fill(ambiente)
 
-    # Clica no botão 'Entrar' para carregar a área de trabalho
+   # Clica no botão 'Entrar' para confirmar o ambiente
     self.btn_entrar_ambiente.click()
 
-    # ESPERA RESILIENTE: Aguarda até o botão "Entrar" sumir da tela
-    # Isso confirma que a tela de parâmetros foi fechada e o processamento de login concluiu.
+    # ESPERA RESILIENTE: Aguarda o botão 'Entrar' sumir da tela (confirma fim do processamento)
     try:
       self.btn_entrar_ambiente.wait_for(state="detached", timeout=60000)
     except Exception:
       pass
 
-    # Pausa técnica para permitir o carregamento e renderização total do DOM principal
+    # Pausa técnica para renderização do iFrame
     self.page.wait_for_timeout(3000)
