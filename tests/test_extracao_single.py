@@ -1,31 +1,25 @@
-
 import pytest
 from pages.login_page import LoginPage
 from pages.navigation_page import NavigationPage
 
 
-def test_login_protheus(page, protheus_url, credenciais_protheus):
+def test_login_e_navegacao_protheus(
+    page, protheus_url, credenciais_protheus, dados_navegacao_protheus
+):
+  # 1. Acesso à URL inicial
   page.goto(protheus_url)
 
-  # Agora o Python reconhecerá a classe sem erros
+  # 2. Instância e Execução do Login Completo
   login_page = LoginPage(page)
-
-  login_page.selecionar_modulo_inicial(credenciais_protheus["programa"])
-  login_page.realizar_login(
-      credenciais_protheus["usuario"], credenciais_protheus["senha"]
-  )
-  
-  login_page.selecionar_parametros_ambiente(
+  login_page.fazer_login_completo(
+      programa=credenciais_protheus["programa"],
+      usuario=credenciais_protheus["usuario"],
+      senha=credenciais_protheus["senha"],
       grupo=credenciais_protheus["grupo"],
       filial=credenciais_protheus["filial"],
       ambiente=credenciais_protheus["ambiente"],
   )
-  
+
+  # 3. Instância e Execução da Navegação no Menu
   navigation_page = NavigationPage(page)
-  
-  navigation_page.navegar_por_caminho_menu(
-      rota_menu_protheus["menu_principal"],
-      rota_menu_protheus["submenu"],
-      rota_menu_protheus["rotina"],
-  )
-  
+  navigation_page.navegar_ate_rotina_completa(dados_navegacao_protheus)
