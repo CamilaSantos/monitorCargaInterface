@@ -1,11 +1,3 @@
-"""Teste de validação do fluxo de inicialização e navegação no Protheus.
-
-Este teste valida a integração entre as 4 Page Objects principais:
-1. ProgramPage (Seleção do módulo SmartClient HTML)
-2. LoginPage (Autenticação de credenciais)
-3. EnvironmentPage (Seleção de Grupo, Filial, Ambiente e Data-Base)
-4. NavigationPage (Navegação dinâmica nos submenus do perfil)
-"""
 
 import pytest
 
@@ -19,6 +11,7 @@ def test_validar_inicializacao_e_navegacao(
     login_page,
     environment_page,
     navigation_page,
+    smart_hub_page,
 ):
   # 1. Carrega o dicionário com as variáveis configuradas para o perfil no .env
   config = obter_config_perfil(PERFIL)
@@ -38,6 +31,9 @@ def test_validar_inicializacao_e_navegacao(
 
   # PASSO 4: Navegação dinâmica nos N níveis de menu lidos do .env
   navigation_page.navegar(*config["menu"])
+
+  smart_hub_page.selecionar_menu_interno("Carga Inicial")
+
 
   # ASSERT / VALIDAÇÃO:
   # Garante que a navegação concluiu sem erros e que a página continua ativa
