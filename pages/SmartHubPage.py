@@ -64,42 +64,37 @@ class SmartHubPage:
       pass
 
   def selecionar_menu_interno(self, nome_item: str):
-    """Clica nos itens do menu lateral do PO UI e trata pop-ups de tutorial."""
-    nome_limpo = sanitizar_texto(nome_item)
-    print(f"\n[SMART HUB] Navegando no menu interno para: '{nome_limpo}'")
+  """Clica nos itens do menu lateral do PO UI e trata pop-ups de tutorial de forma rápida e dinâmica."""
+  nome_limpo = sanitizar_texto(nome_item)
+  print(f"\n[SMART HUB] Navegando no menu interno para: '{nome_limpo}'")
 
-    self.page.wait_for_timeout(2000)
-    frame = self._obter_frame_po_ui()
+  frame = self._obter_frame_po_ui()
+  padrao_regex = re.compile(rf"^\s*{re.escape(nome_limpo)}\s*$", re.IGNORECASE)
 
-    padrao_regex = re.compile(rf"^\s*{re.escape(nome_limpo)}\s*$", re.IGNORECASE)
+  # Busca pelo seletor do menu no PO UI
+  candidatos = frame.locator("po-menu-item, .po-menu-item-link, a").filter(
+      has_text=padrao_regex
+  )
 
+  # Fallback de busca parcial caso não encontre pelo padrão exato
+  if candidatos.count() == 0:
     candidatos = frame.locator("po-menu-item, .po-menu-item-link, a").filter(
-        has_text=padrao_regex
+        has_text=nome_limpo
     )
 
-    if candidatos.count() == 0:
-      candidatos = frame.locator("po-menu-item, .po-menu-item-link, a").filter(
-          has_text=nome_limpo
-      )
+  try:
+    # Aguarda o elemento do menu ficar visível na tela (com limite de 10s), clicando assim que estiver pronto
+    elem = candidatos.first
+    elem.wait_for(state="visible", timeout=10000)
+    elem.scroll_into_view_if_needed()
+    elem.click(force=True)
+    print(f"  └─ [OK] Item '{nome_limpo}' clicado no Smart Hub.")
 
-    if candidatos.count() > 0:
-      for i in range(candidatos.count()):
-        elem = candidatos.nth(i)
-        if elem.is_visible():
-          elem.scroll_into_view_if_needed()
-          elem.click(force=True)
-          print(f"  └─ [OK] Item '{nome_limpo}' clicado no Smart Hub.")
+    # Tenta fechar o tutorial de onboarding imediatamente após o clique
+    self.fechar_tutorial_se_existir()
 
-          try:
-            self.page.wait_for_load_state("networkidle", timeout=5000)
-          except PlaywrightTimeoutError:
-            pass
-
-          # Após selecionar o menu, tenta fechar o tutorial caso ele seja disparado
-          self.fechar_tutorial_se_existir()
-          return
-
+  except Exception as err:
     raise RuntimeError(
-        f"❌ ITEM DO SMART HUB NÃO ENCONTRADO: '{nome_limpo}' dentro do"
-        " iframe PO UI."
+        f"❌ ITEM DO SMART HUB NÃO ENCONTRADO OU INDISPONÍVEL:"
+        f" '{nome_limpo}'. Erro: {err}"
     )
