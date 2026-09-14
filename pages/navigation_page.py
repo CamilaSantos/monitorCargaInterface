@@ -28,13 +28,12 @@ class NavigationPage:
     return self.page
 
   def _tratar_dialogo_pos_navegacao(self):
-    """Verifica e clica em botões de confirmação (ex: Confirmar, OK) que surgem ao abrir rotinas."""
+    """Verifica, clica em botões de confirmação (ex: Confirmar, OK) e aguarda o carregamento da tela final."""
     # Breve pausa para garantir a renderização de pop-ups ou diálogos de parâmetros
     self.page.wait_for_timeout(1500)
 
     contexto = self._obter_contexto()
 
-    # Mapeia possíveis seletores de botões de confirmação do SmartClient (wa-button, button, a)
     textos_confirmacao = [
         "Confirmar",
         "OK",
@@ -46,7 +45,6 @@ class NavigationPage:
     for texto in textos_confirmacao:
       padrao_botao = re.compile(rf"^\s*{texto}\s*$", re.IGNORECASE)
 
-      # Localiza o botão via Web Components do SmartClient ou HTML padrão
       botoes = contexto.locator("wa-button, button, a, div").filter(
           has_text=padrao_botao
       )
@@ -57,7 +55,6 @@ class NavigationPage:
           if btn.is_visible():
             btn.scroll_into_view_if_needed()
 
-            # Dispara o clique diretamente na legenda interna (span) ou no botão
             caption_elem = btn.locator(
                 "span.caption, .caption, span, label"
             ).first
@@ -66,8 +63,21 @@ class NavigationPage:
             else:
               btn.click(force=True)
 
-            # Aguarda o processamento do fechamento da caixa de diálogo
-            self.page.wait_for_timeout(2000)
+            # --- AGUARDE DE CARREGAMENTO PÓS-CONFIRMAÇÃO ---
+            # 1. Aguarda as conexões de rede do SmartClient/ADVPL estabilizarem
+            try:
+              self.page.wait_for_load_state("networkidle", timeout=8000)
+            except PlaywrightTimeoutError:
+              pass
+
+            # 2. Aguarda a caixa de diálogo/botão fechar e sumir da tela
+            try:
+              btn.wait_for(state="detached", timeout=5000)
+            except Exception:
+              pass
+
+            # 3. Pausa de segurança para o DOM da tela principal finalizar a renderização
+            self.page.wait_for_timeout(2500)
             return
 
   def navegar(self, *niveis_menu: str):
@@ -130,5 +140,5 @@ class NavigationPage:
 
       self.page.wait_for_timeout(2000)
 
-    # Após o último menu clicado, trata automaticamente qualquer tela/pop-up de confirmação
+    # Trata a confirmação e aguarda a renderização da página seguinte
     self._tratar_dialogo_pos_navegacao()
