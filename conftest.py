@@ -1,10 +1,12 @@
 import os
 from dotenv import load_dotenv
 import pytest
+
 from pages.program_page import ProgramPage
 from pages.login_page import LoginPage
 from pages.environment_page import EnvironmentPage
 from pages.navigation_page import NavigationPage
+from pages.smart_hub_page import SmartHubPage  # <--- Import da nova Page
 
 load_dotenv()
 
@@ -90,3 +92,9 @@ def environment_page(pagina_protheus):
 def navigation_page(pagina_protheus):
   """Instancia a NavigationPage (Passo 4)."""
   return NavigationPage(pagina_protheus)
+
+
+@pytest.fixture(scope="session")
+def smart_hub_page(pagina_protheus):
+  """Instancia a SmartHubPage para interação no iframe PO UI (Passo 5)."""
+  return SmartHubPage(pagina_protheus)
