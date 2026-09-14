@@ -16,17 +16,62 @@ class NavigationPage:
     self.page = page
 
   def _obter_contexto(self):
-    """Localiza o frame ou página onde os menus estão renderizados."""
+    """Localiza o frame ou página onde os menus e caixas de diálogo estão renderizados."""
     for frame in self.page.frames:
       try:
-        if frame.locator("wa-menu-item").count() > 0:
+        if (
+            frame.locator("wa-menu-item, wa-button, button").count() > 0
+        ):  # Fontes: Mapeamento de botões e menus
           return frame
       except Exception:
         continue
     return self.page
 
+  def _tratar_dialogo_pos_navegacao(self):
+    """Verifica e clica em botões de confirmação (ex: Confirmar, OK) que surgem ao abrir rotinas."""
+    # Breve pausa para garantir a renderização de pop-ups ou diálogos de parâmetros
+    self.page.wait_for_timeout(1500)
+
+    contexto = self._obter_contexto()
+
+    # Mapeia possíveis seletores de botões de confirmação do SmartClient (wa-button, button, a)
+    textos_confirmacao = [
+        "Confirmar",
+        "OK",
+        "Sim",
+        "Salvar",
+        "Avançar",
+    ]  # Fontes: Telas de parâmetro do Protheus
+
+    for texto in textos_confirmacao:
+      padrao_botao = re.compile(rf"^\s*{texto}\s*$", re.IGNORECASE)
+
+      # Localiza o botão via Web Components do SmartClient ou HTML padrão
+      botoes = contexto.locator("wa-button, button, a, div").filter(
+          has_text=padrao_botao
+      )
+
+      if botoes.count() > 0:
+        for i in range(botoes.count()):
+          btn = botoes.nth(i)
+          if btn.is_visible():
+            btn.scroll_into_view_if_needed()
+
+            # Dispara o clique diretamente na legenda interna (span) ou no botão
+            caption_elem = btn.locator(
+                "span.caption, .caption, span, label"
+            ).first
+            if caption_elem.count() > 0 and caption_elem.is_visible():
+              caption_elem.click(force=True)
+            else:
+              btn.click(force=True)
+
+            # Aguarda o processamento do fechamento da caixa de diálogo
+            self.page.wait_for_timeout(2000)
+            return
+
   def navegar(self, *niveis_menu: str):
-    """Navega exclusivamente pela árvore do menu lateral."""
+    """Navega pela árvore do menu lateral e confirma diálogos iniciais da rotina."""
     for nivel_idx, item_nome in enumerate(niveis_menu, start=1):
       if not item_nome or not item_nome.strip():
         continue
@@ -38,7 +83,6 @@ class NavigationPage:
       for _ in range(1, tentativas + 1):
         contexto = self._obter_contexto()
 
-        # Busca o menu pelo texto visível exato do elemento
         item_locator = contexto.locator(
             f"wa-menu-item:has-text('{nome_limpo}')"
         )
@@ -47,7 +91,6 @@ class NavigationPage:
           for i in range(item_locator.count()):
             elem = item_locator.nth(i)
 
-            # Captura a legenda interna do item de menu
             caption_elem = elem.locator("span.caption, .caption, span").first
             texto_comparacao = (
                 caption_elem.inner_text()
@@ -56,7 +99,6 @@ class NavigationPage:
             )
             texto_comparacao = sanitizar_texto(texto_comparacao)
 
-            # Remove contadores do tipo (24), (5) para comparar
             texto_sem_contador = re.sub(
                 r"\(\d+\)$", "", texto_comparacao
             ).strip()
@@ -68,7 +110,6 @@ class NavigationPage:
               if elem.is_visible():
                 elem.scroll_into_view_if_needed()
 
-                # Dispara o clique no span interno
                 if caption_elem.count() > 0 and caption_elem.is_visible():
                   caption_elem.click(force=True)
                 else:
@@ -87,5 +128,7 @@ class NavigationPage:
             f"❌ MENU LATERAL NÃO ENCONTRADO no Nível {nivel_idx}: '{nome_limpo}'."
         )
 
-      # Aguarda a resposta do Protheus antes de prosseguir
       self.page.wait_for_timeout(2000)
+
+    # Após o último menu clicado, trata automaticamente qualquer tela/pop-up de confirmação
+    self._tratar_dialogo_pos_navegacao()
