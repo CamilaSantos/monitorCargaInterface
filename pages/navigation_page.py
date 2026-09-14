@@ -2,107 +2,87 @@ import re
 import unicodedata
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
-
 def sanitizar_texto(texto: str) -> str:
-  """Normaliza \\xa0 e espaços do HTML."""
-  if not texto:
-    return ""
-  texto_limpo = unicodedata.normalize("NFKC", texto)
-  return re.sub(r"\s+", " ", texto_limpo).strip()
-
+    if not texto:
+        return ""
+    texto_limpo = unicodedata.normalize("NFKC", texto)
+    return re.sub(r"\s+", " ", texto_limpo).strip()
 
 class NavigationPage:
+    def __init__(self, page: Page):
+        self.page = page
 
-  def __init__(self, page: Page):
-    self.page = page
+    def _obter_contexto(self):
+        """Localiza a página ou frame onde a árvore de menus está anexada."""
+        for frame in self.page.frames:
+            try:
+                if frame.locator("wa-menu-item").count() > 0:
+                    return frame
+            except Exception:
+                continue
+        return self.page
 
-  def _obter_contexto(self):
-    """Localiza o frame ou página principal onde os componentes estão anexados."""
-    for frame in self.page.frames:
-      try:
-        if frame.locator("wa-text-view, cwa-panel, wa-menu-item").count() > 0:
-          return frame
-      except Exception:
-        continue
-    return self.page
+    def navegar(self, *niveis_menu: str):
+        """Navega exclusivamente pela árvore do menu lateral."""
+        print(f"\n[NAVEGAÇÃO] Sequência no menu lateral: {list(niveis_menu)}")
 
-  def navegar(self, *niveis_menu: str):
-    """Navega clicando no menu lateral (Nível 1) e prosseguindo pelos wa-text-view do painel central."""
-    print(f"\n[NAVEGAÇÃO] Iniciando sequência de menus: {list(niveis_menu)}")
+        for nivel_idx, item_nome in enumerate(niveis_menu, start=1):
+            if not item_nome or not item_nome.strip():
+                continue
 
-    for nivel_idx, item_nome in enumerate(niveis_menu, start=1):
-      if not item_nome or not item_nome.strip():
-        continue
+            nome_limpo = sanitizar_texto(item_nome)
+            # Regex que tolera o sufixo numérico (ex: "Smart Hub" casa com "Smart Hub (5)")
+            padrao_regex = re.compile(rf"^\s*{re.escape(nome_limpo)}(\s*\(\d+\))?\s*$", re.IGNORECASE)
 
-      nome_limpo = sanitizar_texto(item_nome)
-      # Regex que tolera o sufixo numérico como (5) e quebras de linha
-      padrao_regex = re.compile(
-          rf"^\s*{re.escape(nome_limpo)}(\s*\(\d+\))?\s*$", re.IGNORECASE
-      )
+            # Espera obrigatória para garantir que o SmartClient terminou o re-render após o clique anterior
+            self.page.wait_for_timeout(1500)
 
-      # 1. ESPERA DE REFRESH PÓS-CLIKE ANTERIOR
-      # Aguarda a rede estabilizar antes de buscar o próximo elemento
-      try:
-        self.page.wait_for_load_state("networkidle", timeout=5000)
-      except PlaywrightTimeoutError:
-        pass
+            clicado = False
+            tentativas = 5
 
-      self.page.wait_for_timeout(1500)  # Garante a renderização do Shadow DOM
+            for tentativa in range(1, tentativas + 1):
+                contexto = self._obter_contexto()
 
-      clicado = False
-      tentativas = 4
+                # Busca os itens de menu lateral renovando o nó do DOM a cada tentativa
+                elementos = contexto.locator("wa-menu-item").all()
 
-      for tentativa in range(1, tentativas + 1):
-        contexto = self._obter_contexto()
+                for elem in elementos:
+                    try:
+                        texto_bruto = elem.inner_text()
+                        texto_limpo = sanitizar_texto(texto_bruto)
 
-        # Seletores combinados: menu lateral (para nível 1) e componentes centrais (wa-text-view, cwa-panel)
-        seletores_candidatos = [
-            "wa-text-view",
-            "cwa-panel",
-            "wa-panel",
-            "wa-menu-item",
-            "a",
-            "span",
-        ]
+                        # Verifica se o texto do elemento bate com o nome desejado
+                        if padrao_regex.search(texto_limpo) or nome_limpo.lower() in texto_limpo.lower():
+                            if elem.is_visible():
+                                elem.scroll_into_view_if_needed()
+                                
+                                # Tenta clicar no span interno ou força o clique no elemento
+                                span_caption = elem.locator("span.caption, span").first
+                                if span_caption.count() > 0 and span_caption.is_visible():
+                                    span_caption.click(force=True)
+                                else:
+                                    elem.click(force=True)
 
-        for seletor in seletores_candidatos:
-          try:
-            # Filtra os elementos pelo texto correspondente
-            locators = contexto.locator(seletor).filter(has_text=padrao_regex)
+                                print(f"  └─ [OK] Clicado no menu lateral (Nível {nivel_idx}): '{nome_limpo}' (Tentativa {tentativa})")
+                                clicado = True
+                                break
+                    except Exception:
+                        # Se o nó do DOM mudou no meio da iteração, ignora e tenta na próxima
+                        continue
 
-            if locators.count() > 0:
-              alvo = locators.first
-              if alvo.is_visible():
-                alvo.scroll_into_view_if_needed()
-                print(
-                    f"  └─ [OK] Clicando no Nível {nivel_idx} ('{nome_limpo}')"
-                    f" via <{seletor}> (Tentativa {tentativa})"
+                if clicado:
+                    break
+
+                print(f"  ├─ [AGUARDANDO DOM] Nível {nivel_idx} ('{nome_limpo}')... ({tentativa}/{tentativas})")
+                self.page.wait_for_timeout(1500)
+
+            if not clicado:
+                raise RuntimeError(
+                    f"❌ MENU LATERAL NÃO ENCONTRADO no Nível {nivel_idx}: '{nome_limpo}'.\n"
+                    f"   Verifique se o nome bate com os submenus visíveis na barra lateral."
                 )
 
-                # Clique forçado bypassa overlays invisíveis do SmartClient
-                alvo.click(force=True)
-                clicado = True
-                break
-          except Exception:
-            continue
+            # Aguarda a resposta ADVPL e a expansão dos filhos antes de ir para o próximo nível
+            self.page.wait_for_timeout(2000)
 
-        if clicado:
-          break
-
-        print(
-            f"  ├─ [AGUARDANDO REFRESH PÓS-CLIQUE] Nível {nivel_idx}"
-            f" ('{nome_limpo}')... ({tentativa}/{tentativas})"
-        )
-        self.page.wait_for_timeout(1500)
-
-      if not clicado:
-        raise RuntimeError(
-            f"❌ ITEM NÃO ENCONTRADO no Nível {nivel_idx}: '{nome_limpo}'.\n"
-            f"   Não foi possível interagir com o elemento via wa-text-view ou"
-            f" wa-menu-item."
-        )
-
-      # Aguarda a animação e requisição ADVPL do clique atual finalizar
-      self.page.wait_for_timeout(2000)
-
-    print("[NAVEGAÇÃO] Sequência de menus concluída com sucesso!\n")
+        print("[NAVEGAÇÃO] Navegação pelo menu lateral concluída com sucesso!\n")
