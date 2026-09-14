@@ -13,7 +13,7 @@ class NavigationPage:
         self.page = page
 
     def _obter_contexto(self):
-        """Localiza a página ou frame onde a árvore de menus está anexada."""
+        """Localiza o frame ou página onde os menus estão renderizados."""
         for frame in self.page.frames:
             try:
                 if frame.locator("wa-menu-item").count() > 0:
@@ -31,58 +31,56 @@ class NavigationPage:
                 continue
 
             nome_limpo = sanitizar_texto(item_nome)
-            # Regex que tolera o sufixo numérico (ex: "Smart Hub" casa com "Smart Hub (5)")
-            padrao_regex = re.compile(rf"^\s*{re.escape(nome_limpo)}(\s*\(\d+\))?\s*$", re.IGNORECASE)
-
-            # Espera obrigatória para garantir que o SmartClient terminou o re-render após o clique anterior
-            self.page.wait_for_timeout(1500)
-
             clicado = False
             tentativas = 5
 
             for tentativa in range(1, tentativas + 1):
                 contexto = self._obter_contexto()
 
-                # Busca os itens de menu lateral renovando o nó do DOM a cada tentativa
-                elementos = contexto.locator("wa-menu-item").all()
+                # Busca o menu pelo texto visível exato do elemento
+                # O locator do Playwright isola o elemento correto sem concatenar os textos dos filhos
+                item_locator = contexto.locator(f"wa-menu-item:has-text('{nome_limpo}')")
 
-                for elem in elementos:
-                    try:
-                        texto_bruto = elem.inner_text()
-                        texto_limpo = sanitizar_texto(texto_bruto)
+                if item_locator.count() > 0:
+                    # Percorre os candidatos para encontrar a correspondência exata do nível atual
+                    for i in range(item_locator.count()):
+                        elem = item_locator.nth(i)
+                        
+                        # Captura apenas o texto da legenda interna ou primeira linha para evitar os filhos
+                        caption_elem = elem.locator("span.caption, .caption, span").first
+                        texto_comparacao = caption_elem.inner_text() if caption_elem.count() > 0 else elem.inner_text()
+                        texto_comparacao = sanitizar_texto(texto_comparacao)
 
-                        # Verifica se o texto do elemento bate com o nome desejado
-                        if padrao_regex.search(texto_limpo) or nome_limpo.lower() in texto_limpo.lower():
+                        # Valida se o nome buscado está contido no texto do item (ignorando contadores)
+                        texto_sem_contador = re.sub(r"\(\d+\)$", "", texto_comparacao).strip()
+
+                        if nome_limpo.lower() == texto_sem_contador.lower() or nome_limpo.lower() in texto_comparacao.lower():
                             if elem.is_visible():
                                 elem.scroll_into_view_if_needed()
                                 
-                                # Tenta clicar no span interno ou força o clique no elemento
-                                span_caption = elem.locator("span.caption, span").first
-                                if span_caption.count() > 0 and span_caption.is_visible():
-                                    span_caption.click(force=True)
+                                # Dispara o clique no span interno para garantir a execução do evento ADVPL
+                                if caption_elem.count() > 0 and caption_elem.is_visible():
+                                    caption_elem.click(force=True)
                                 else:
                                     elem.click(force=True)
 
                                 print(f"  └─ [OK] Clicado no menu lateral (Nível {nivel_idx}): '{nome_limpo}' (Tentativa {tentativa})")
                                 clicado = True
                                 break
-                    except Exception:
-                        # Se o nó do DOM mudou no meio da iteração, ignora e tenta na próxima
-                        continue
 
                 if clicado:
                     break
 
-                print(f"  ├─ [AGUARDANDO DOM] Nível {nivel_idx} ('{nome_limpo}')... ({tentativa}/{tentativas})")
+                print(f"  ├─ [AGUARDANDO REFRESH/DOM] Nível {nivel_idx} ('{nome_limpo}')... ({tentativa}/{tentativas})")
                 self.page.wait_for_timeout(1500)
 
             if not clicado:
                 raise RuntimeError(
                     f"❌ MENU LATERAL NÃO ENCONTRADO no Nível {nivel_idx}: '{nome_limpo}'.\n"
-                    f"   Verifique se o nome bate com os submenus visíveis na barra lateral."
+                    f"   Verifique se o nome bate com os itens visíveis na barra lateral."
                 )
 
-            # Aguarda a resposta ADVPL e a expansão dos filhos antes de ir para o próximo nível
+            # Aguarda a resposta da requisição do Protheus pós-clique
             self.page.wait_for_timeout(2000)
 
         print("[NAVEGAÇÃO] Navegação pelo menu lateral concluída com sucesso!\n")
