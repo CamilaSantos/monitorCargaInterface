@@ -8,7 +8,7 @@ class NavigationPage:
     self.page = page
 
   def _obter_contexto_menu(self):
-    """Localiza o contexto ativo que possui os menus/submenus renderizados."""
+    """Retorna o contexto (página ou frame) que contém os menus atualizados."""
     if self.page.locator("wa-menu-item, cwa-menu-item").count() > 0:
       return self.page
 
@@ -22,23 +22,20 @@ class NavigationPage:
     return self.page
 
   def navegar(self, *niveis_menu: str):
-    """Navega dinamicamente por N níveis de menu e submenus expansíveis."""
+    """Navega dinamicamente lidando com o refresh do painel central entre cada clique."""
     print(f"\n[NAVEGAÇÃO] Iniciando sequência de menus: {list(niveis_menu)}")
 
-    # 1. ESPERA CRÍTICA INICIAL: Aguarda os menus raiz carregarem no DOM
+    # ESPERA CRÍTICA INICIAL
     try:
       self.page.wait_for_selector(
           "wa-menu-item, cwa-menu-item", state="attached", timeout=60000
       )
     except PlaywrightTimeoutError:
       raise RuntimeError(
-          "❌ FALHA DE CARREGAMENTO: Nenhum menu foi localizado no DOM após o"
+          "❌ FALHA DE CARREGAMENTO: Os menus não carregaram a tempo após o"
           " login."
       )
 
-    self.page.wait_for_timeout(2000)
-
-    # 2. ITERAÇÃO SEQUENCIAL PELOS NÍVEIS
     for nivel_idx, item_nome in enumerate(niveis_menu, start=1):
       if not item_nome or not item_nome.strip():
         continue
@@ -46,18 +43,46 @@ class NavigationPage:
       nome_limpo = item_nome.strip()
       padrao_flexivel = re.compile(rf"{re.escape(nome_limpo)}", re.IGNORECASE)
 
-      contexto = self._obter_contexto_menu()
+      # -------------------------------------------------------------------
+      # TRATAMENTO DO REFRESH: Tentativas com reconexão ao DOM recarregado
+      # -------------------------------------------------------------------
+      item_encontrado = False
+      tentativas = 3
 
-      # Busca flexível: atinge <wa-menu-item>, <cwa-menu-item> ou o span interior com o texto do submenu
-      item_locator = contexto.locator(
-          "wa-menu-item, cwa-menu-item, span.caption"
-      ).filter(has_text=padrao_flexivel).first
+      for tentativa in range(1, tentativas + 1):
+        contexto = self._obter_contexto_menu()
 
-      # A) Validação de presença no DOM
-      try:
-        # Aguarda até 10s para o submenu expandir e ser anexado
-        item_locator.wait_for(state="attached", timeout=10000)
-      except PlaywrightTimeoutError:
+        # Localiza o elemento atualizado pós-refresh
+        item_locator = contexto.locator(
+            "wa-menu-item, cwa-menu-item, span.caption"
+        ).filter(has_text=padrao_flexivel).first
+
+        try:
+          # Aguarda o elemento existir e ficar visível na tela pós-refresh
+          item_locator.wait_for(state="visible", timeout=8000)
+
+          # Rola e executa o clique
+          item_locator.scroll_into_view_if_needed()
+          print(
+              f"  └─ [OK] Clicando no menu (Nível {nivel_idx}): '{nome_limpo}'"
+              f" (Tentativa {tentativa})"
+          )
+          item_locator.click()
+
+          item_encontrado = True
+          break  # Clique realizado com sucesso!
+
+        except PlaywrightTimeoutError:
+          # Se falhar pela transição do refresh, aguarda 1.5s antes da próxima tentativa
+          print(
+              f"  ├─ [AGUARDANDO REFRESH] Nível {nivel_idx} ('{nome_limpo}'),"
+              f" aguardando estabilização do painel... ({tentativa}/{tentativas})"
+          )
+          self.page.wait_for_timeout(1500)
+
+      # Se após todas as tentativas o menu não foi clicado, lança exceção detalhada
+      if not item_encontrado:
+        contexto = self._obter_contexto_menu()
         try:
           menus_detectados = [
               txt.strip()
@@ -70,24 +95,13 @@ class NavigationPage:
           menus_detectados = []
 
         raise RuntimeError(
-            f"❌ MENU NÃO ENCONTRADO no Nível {nivel_idx}: '{nome_limpo}'.\n"
-            f"   - Nome buscado: '{nome_limpo}'\n"
-            f"   - Submenus detectados após expansão: {menus_detectados}"
+            f"❌ MENU NÃO ENCONTRADO PÓS-REFRESH no Nível {nivel_idx}:"
+            f" '{nome_limpo}'.\n"
+            f"   - Nome buscado no .env: '{nome_limpo}'\n"
+            f"   - Menus visíveis no DOM atual: {menus_detectados}"
         )
 
-      # B) Clique com rolagem automática
-      try:
-        item_locator.scroll_into_view_if_needed()
-        item_locator.wait_for(state="visible", timeout=10000)
-        print(f"  └─ [OK] Clicando no menu (Nível {nivel_idx}): '{nome_limpo}'")
-        item_locator.click()
-      except PlaywrightTimeoutError:
-        raise RuntimeError(
-            f"⚠️ MENU LOCALIZADO MAS NÃO FICOU VISÍVEL/CLICÁVEL no Nível"
-            f" {nivel_idx}: '{nome_limpo}'."
-        )
-
-      # Pausa essencial pós-clique para permitir a animação de abertura do submenu
-      self.page.wait_for_timeout(2000)
+      # PAUSA PÓS-CLIQUE: Aguarda o término da animação/refresh do painel central
+      self.page.wait_for_timeout(2500)
 
     print("[NAVEGAÇÃO] Sequência de menus concluída com sucesso!\n")
