@@ -3,11 +3,10 @@ import unicodedata
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 
-def normalizar_texto(texto: str) -> str:
-  """Normaliza caracteres HTML especiais como \\xa0 (&nbsp;) para espaços simples."""
+def sanitizar_texto(texto: str) -> str:
+  """Normaliza \\xa0 (&nbsp;) para espaços simples e remove espaços duplicados."""
   if not texto:
     return ""
-  # Substitui espaço inquebrável por espaço comum e limpa espaços extras
   texto_limpo = unicodedata.normalize("NFKC", texto)
   return re.sub(r"\s+", " ", texto_limpo).strip()
 
@@ -18,84 +17,91 @@ class NavigationPage:
     self.page = page
 
   def _obter_contexto_menu(self):
-    """Localiza o contexto (página ou frame) que contém os menus atualizados."""
-    if self.page.locator("wa-menu-item, cwa-menu-item").count() > 0:
+    """Localiza o contexto ativo que possui os menus renderizados."""
+    if self.page.locator("wa-menu-item").count() > 0:
       return self.page
 
     for frame in self.page.frames:
       try:
-        if frame.locator("wa-menu-item, cwa-menu-item").count() > 0:
+        if frame.locator("wa-menu-item").count() > 0:
           return frame
       except Exception:
         continue
 
     return self.page
 
+  def _localizar_elemento_menu(self, contexto, nome_buscado: str):
+    """Varre os elementos wa-menu-item normalizando o texto (resolvendo \\xa0 e contadores como (5))."""
+    elementos = contexto.locator("wa-menu-item").all()
+    nome_alvo = sanitizar_texto(nome_buscado).lower()
+
+    for elem in elementos:
+      texto_bruto = elem.inner_text()
+      texto_normalizado = sanitizar_texto(texto_bruto).lower()
+
+      # Remove sufixos como (5), (24) do texto normalizado do elemento para comparação
+      texto_sem_contador = re.sub(r"\(\d+\)$", "", texto_normalizado).strip()
+
+      if (
+          nome_alvo == texto_sem_contador
+          or nome_alvo in texto_normalizado
+          or nome_alvo in texto_bruto.lower()
+      ):
+        return elem
+
+    return None
+
   def navegar(self, *niveis_menu: str):
-    """Navega dinamicamente tratando automaticamente &nbsp; (\\xa0), sufixos e refreshes do Protheus."""
+    """Navega dinamicamente lidando com \\xa0, contadores e refreshes do Protheus."""
     print(f"\n[NAVEGAÇÃO] Iniciando sequência de menus: {list(niveis_menu)}")
 
     try:
       self.page.wait_for_selector(
-          "wa-menu-item, cwa-menu-item", state="attached", timeout=60000
+          "wa-menu-item", state="attached", timeout=60000
       )
     except PlaywrightTimeoutError:
       raise RuntimeError(
-          "❌ FALHA DE CARREGAMENTO: Os menus não carregaram a tempo após o"
-          " login."
+          "❌ FALHA DE CARREGAMENTO: Os menus não carregaram no DOM a tempo."
       )
 
     for nivel_idx, item_nome in enumerate(niveis_menu, start=1):
       if not item_nome or not item_nome.strip():
         continue
 
-      nome_limpo = normalizar_texto(item_nome)
-
-      # TRATAMENTO DO \xa0 / &nbsp;: O Regex \s+ aceita tanto espaço comum quanto \xa0 do HTML
-      palavras = [re.escape(p) for p in nome_limpo.split(" ")]
-      padrao_regex_flexivel = re.compile(r"\s+".join(palavras), re.IGNORECASE)
-
+      nome_limpo = sanitizar_texto(item_nome)
       item_encontrado = False
-      tentativas = 3
+      tentativas = 4
 
       for tentativa in range(1, tentativas + 1):
         contexto = self._obter_contexto_menu()
+        elem_locator = self._localizar_elemento_menu(contexto, nome_limpo)
 
-        # Busca flexível por qualquer tag de menu que contenha a palavra normalizada
-        item_locator = contexto.locator(
-            "wa-menu-item, cwa-menu-item, span.caption"
-        ).filter(has_text=padrao_regex_flexivel).first
+        if elem_locator and elem_locator.is_visible():
+          try:
+            elem_locator.scroll_into_view_if_needed()
+            print(
+                f"  └─ [OK] Clicando no menu (Nível {nivel_idx}): '{nome_limpo}'"
+                f" (Tentativa {tentativa})"
+            )
+            elem_locator.click()
+            item_encontrado = True
+            break
+          except Exception:
+            pass
 
-        try:
-          item_locator.wait_for(state="visible", timeout=8000)
-          item_locator.scroll_into_view_if_needed()
-
-          print(
-              f"  └─ [OK] Clicando no menu (Nível {nivel_idx}): '{nome_limpo}'"
-              f" (Tentativa {tentativa})"
-          )
-          item_locator.click()
-
-          item_encontrado = True
-          break
-
-        except PlaywrightTimeoutError:
-          print(
-              f"  ├─ [AGUARDANDO REFRESH] Nível {nivel_idx} ('{nome_limpo}'),"
-              f" aguardando estabilização... ({tentativa}/{tentativas})"
-          )
-          self.page.wait_for_timeout(1500)
+        print(
+            f"  ├─ [AGUARDANDO REFRESH] Nível {nivel_idx} ('{nome_limpo}'),"
+            f" aguardando estabilização... ({tentativa}/{tentativas})"
+        )
+        self.page.wait_for_timeout(1500)
 
       if not item_encontrado:
         contexto = self._obter_contexto_menu()
         try:
-          # Exibe no log a lista com os textos limpos para facilitar a leitura no console
           menus_detectados = [
-              normalizar_texto(txt)
-              for txt in contexto.locator(
-                  "wa-menu-item, cwa-menu-item, span.caption"
-              ).all_inner_texts()
-              if txt.strip()
+              sanitizar_texto(elem.inner_text())
+              for elem in contexto.locator("wa-menu-item").all()
+              if elem.is_visible()
           ]
         except Exception:
           menus_detectados = []
@@ -104,9 +110,10 @@ class NavigationPage:
             f"❌ MENU NÃO ENCONTRADO PÓS-REFRESH no Nível {nivel_idx}:"
             f" '{nome_limpo}'.\n"
             f"   - Nome buscado no .env: '{nome_limpo}'\n"
-            f"   - Menus visíveis normalizados no DOM: {menus_detectados}"
+            f"   - Menus visíveis normalizados: {menus_detectados}"
         )
 
-      self.page.wait_for_timeout(2500)
+      # Pausa para permitir a abertura do submenu pós-clique
+      self.page.wait_for_timeout(2000)
 
     print("[NAVEGAÇÃO] Sequência de menus concluída com sucesso!\n")
