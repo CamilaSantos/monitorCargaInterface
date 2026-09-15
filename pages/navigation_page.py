@@ -17,53 +17,52 @@ class NavigationPage:
 
     def obter_informacoes_ambiente(self) -> str:
         """
-        Captura o texto do primeiro botão (Ambiente/Banco) e do quarto botão (Empresa/Filial)
-        da barra de ferramentas superior.
+        Captura o texto dos spans internos dos wa-buttons via busca direta por IDs 
+        compatíveis com a barra de ferramentas (padrão #COMP...dict-tbutton).
         """
         try:
             self.page.wait_for_timeout(2000)
 
+            # O Playwright consegue perfurar o Shadow DOM diretamente especificando as tags filhas.
+            # Este seletor busca qualquer wa-button com ID iniciando em COMP e pega o span interno.
+            seletor_spans = "wa-button[id^='COMP'].dict-tbutton span"
+
             contextos = [self.page] + list(self.page.frames)
 
             for ctx in contextos:
-                # O Playwright atravessa o Shadow DOM nativamente com 'wa-button.dict-tbutton' teste
-                botoes = ctx.locator("wa-button.dict-tbutton")
-                total = botoes.count()
+                locator = ctx.locator(seletor_spans)
+                total = locator.count()
 
-                if total >= 4:
-                    # 1. Pega o atributo 'caption' ou texto do 1º botão (índice 0)
-                    btn1 = botoes.nth(0)
-                    texto1 = btn1.get_attribute("caption") or btn1.inner_text()
+                if total > 0:
+                    textos_capturados = []
 
-                    # 2. Pega o atributo 'caption' ou texto do 4º botão (índice 3 - Empresa/Filial)
-                    btn4 = botoes.nth(3)
-                    texto4 = btn4.get_attribute("caption") or btn4.inner_text()
-
-                    texto1 = sanitizar_texto(texto1)
-                    texto4 = sanitizar_texto(texto4)
-
-                    if texto1 and texto4:
-                        return f"{texto1} / {texto4}"
-
-                # Fallback via varredura direta caso o count retorne parcial
-                elif total > 0:
-                    textos = []
                     for i in range(total):
-                        t = botoes.nth(i).get_attribute("caption") or botoes.nth(i).inner_text()
-                        t = sanitizar_texto(t)
-                        if t and not re.search(r"log\s*off", t, re.IGNORECASE):
-                            textos.append(t)
-                    
-                    if len(textos) >= 2:
-                        return f"{textos[0]} / {textos[-1]}"
-                    elif len(textos) == 1:
-                        return textos[0]
+                        elem = locator.nth(i)
+                        # Garante que o span está visível e possui conteúdo válido
+                        if elem.is_visible():
+                            texto = elem.inner_text().strip()
+                            texto_limpo = sanitizar_texto(texto)
+
+                            # Filtra botões irrelevantes (Log Off, vazios ou marcadores temporários)
+                            if (
+                                texto_limpo
+                                and len(texto_limpo) > 2
+                                and not re.search(r"log\s*off", texto_limpo, re.IGNORECASE)
+                                and texto_limpo.lower() != "xxx"
+                            ):
+                                if texto_limpo not in textos_capturados:
+                                    textos_capturados.append(texto_limpo)
+
+                    # Retorna o 1º botão (Ambiente/Banco) e o 3º botão (Empresa/Filial) da lista válida
+                    if len(textos_capturados) >= 2:
+                        return f"{textos_capturados[0]} / {textos_capturados[-1]}"
+                    elif len(textos_capturados) == 1:
+                        return textos_capturados[0]
 
             return "Informação de ambiente não localizada na página"
 
         except Exception as e:
             return f"Erro na captura do ambiente: {str(e)}"
-
     def obter_banco_dados(self) -> str:
         """Alias mantido para compatibilidade."""
         return self.obter_informacoes_ambiente()
