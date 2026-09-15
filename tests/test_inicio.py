@@ -19,17 +19,18 @@ def test_02_autenticar_usuario(config, login_page, tirar_evidencia):
     tirar_evidencia(login_page.page, "02_autenticacao")
 
 
-def test_03_configurar_ambiente(config, environment_page, tirar_evidencia):
-    environment_page.selecionar_ambiente(
-        grupo=config["grupo"],
-        filial=config["filial"],
-        ambiente=config["ambiente"],
-    )
-    
-    # Captura única e direta das informações do sistema armazenando na variável do conftest
-    dados_capturados = navigation_page.obter_informacoes_ambiente()
+def test_03_autenticar_e_selecionar_ambiente(config, environment_page, navigation_page, tirar_evidencia):
+    environment_page.selecionar_ambiente(config["grupo"], config["filial"], config["ambiente"])
+    tirar_evidencia(environment_page.page, "03_ambiente_selecionado")
+
+    # Captura a informação e atribui à variável do conftest
     resultado = navigation_page.obter_informacoes_ambiente()
     conftest.DADOS_SISTEMA["info_ambiente"] = resultado
+
+    # Imprime no terminal para fazermos a validação
+    print("\n" + "=" * 60)
+    print(f"DEBUG AMBIENTE: {resultado}")
+    print("=" * 60 + "\n")
 
     # 2. Imprime diretamente no CMD com destaque visual
     print("\n" + "=" * 60)

@@ -16,71 +16,64 @@ class NavigationPage:
         self.page = page
 
     def obter_informacoes_ambiente(self) -> str:
-      """
-      Captura o texto do cabeçalho do Protheus através da estrutura de Shadow DOM.
-      Caminho DOM: wa-panel.dict-tpanel -> wa-button.dict-tbutton -> shadow-root -> button -> span
-      """
-      try:
-          # Seletores encadeados compatíveis com o motor do Playwright para Shadow DOM
-          seletores = [
-              "wa-button.dict-tbutton span",
-              "wa-panel.dict-tpanel button span",
-              "wa-button[class*='dict-tbutton'] span",
-              "wa-panel button span",
-              ".dict-tbutton button span"
-          ]
+        """
+        Captura o texto do cabeçalho do Protheus percorrendo recursivamente os Shadow Roots.
+        Caminho DOM ref: wa-panel -> wa-button -> shadow-root -> button -> span
+        """
+        try:
+            # Dá um tempo para garantir a renderização completa da barra superior
+            self.page.wait_for_timeout(3000)
 
-          # 1. Busca na página principal e em todos os frames/iframes abertos
-          contextos = [self.page] + list(self.page.frames)
+            # Script JS que faz uma varredura profunda cruzando qualquer nivel de Shadow DOM
+            script_js = """
+            () => {
+                function extrairTextoDeep(root) {
+                    if (!root) return null;
+                    
+                    // 1. Procura primeiro pelos botões específicos de ambiente/empresa (dict-tbutton ou dict-tpanel)
+                    const elementosAlvo = root.querySelectorAll('wa-button.dict-tbutton, wa-panel.dict-tpanel, [class*="dict-tbutton"], [class*="dict-tpanel"]');
+                    for (let el of elementosAlvo) {
+                        let text = el.getAttribute('caption') || el.innerText || el.textContent;
+                        if (text && text.trim().length > 3) {
+                            return text.trim();
+                        }
+                        if (el.shadowRoot) {
+                            let subText = extrairTextoDeep(el.shadowRoot);
+                            if (subText) return subText;
+                        }
+                    }
 
-          for ctx in contextos:
-              for seletor in seletores:
-                  try:
-                      locator = ctx.locator(seletor)
-                      quantidade = locator.count()
-                      
-                      for i in range(quantidade):
-                          elem = locator.nth(i)
-                          if elem.is_visible():
-                              texto = elem.inner_text().strip()
-                              if texto and len(texto) > 3:
-                                  # Trata múltiplos espaços ou quebras de linha
-                                  texto_limpo = " ".join(texto.split())
-                                  return texto_limpo
-                  except Exception:
-                      continue
+                    // 2. Se não achou pelas classes específicas, percorre todos os filhos com shadowRoot
+                    const todosComShadow = root.querySelectorAll('*');
+                    for (let el of todosComShadow) {
+                        if (el.shadowRoot) {
+                            let subText = extrairTextoDeep(el.shadowRoot);
+                            if (subText) return subText;
+                        }
+                    }
+                    return null;
+                }
 
-          # 2. Fallback via JavaScript caso os seletores CSS diretos falhem
-          script_js = """
-          () => {
-              const painel = document.querySelector('wa-panel.dict-tpanel') || document.querySelector('wa-button.dict-tbutton');
-              if (painel) {
-                  // Tenta pegar pelo atributo caption ou innerText interno
-                  const caption = painel.getAttribute('caption');
-                  if (caption) return caption;
-                  
-                  if (painel.shadowRoot) {
-                      const btn = painel.shadowRoot.querySelector('button');
-                      if (btn) return btn.innerText || btn.textContent;
-                  }
-                  return painel.innerText;
-              }
-              return null;
-          }
-          """
-          
-          for ctx in contextos:
-              try:
-                  resultado_js = ctx.evaluate(script_js)
-                  if resultado_js and len(str(resultado_js).strip()) > 3:
-                      return " ".join(str(resultado_js).split()).strip()
-              except Exception:
-                  continue
+                return extrairTextoDeep(document);
+            }
+            """
 
-          return "Informação de ambiente não localizada na página"
+            # Executa a busca na página principal e em todos os frames
+            contextos = [self.page] + list(self.page.frames)
 
-      except Exception as e:
-          return f"Erro na captura do ambiente: {str(e)}"
+            for ctx in contextos:
+                try:
+                    resultado = ctx.evaluate(script_js)
+                    if resultado and len(str(resultado).strip()) > 3:
+                        texto_limpo = " ".join(str(resultado).split()).strip()
+                        return texto_limpo
+                except Exception:
+                    continue
+
+            return "Informação de ambiente não localizada na página"
+
+        except Exception as e:
+            return f"Erro na captura do ambiente: {str(e)}"
 
     def obter_banco_dados(self) -> str:
         """Alias mantido para compatibilidade."""
