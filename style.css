@@ -1,3 +1,25 @@
+/* Importação de Fonte Moderna e Legível */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    font-size: 15px !important;
+    line-height: 1.6 !important;
+    background-color: #f8f9fa !important;
+    color: #1e293b !important;
+    margin: 24px !important;
+}
+
+/* Título Principal */
+h1 {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    padding-bottom: 12px !important;
+}
+
 /* ==========================================================================
    SISTEMA DE DESIGN UNIFICADO - RELATÓRIOS API
    ========================================================================== */

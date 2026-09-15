@@ -11,8 +11,6 @@ from pages.smart_hub_page import SmartHubPage
 load_dotenv()
 
 TIMEOUT_PADRAO = int(os.getenv("PROTHEUS_TIMEOUT", "60000"))
-
-# Caminho do seu arquivo style.css existente
 CAMINHO_STYLE_CSS = os.path.join(os.path.dirname(__file__), "style.css")
 
 
@@ -30,9 +28,13 @@ def carregar_css_customizado():
 # ==============================================================================
 
 def pytest_configure(config):
-    """Gera o relatório HTML automaticamente com o mesmo nome do arquivo do teste e associa o CSS."""
+    """Gera o relatório HTML, define o Base URL e injeta configurações de ambiente."""
     os.makedirs("relatorios", exist_ok=True)
     os.makedirs("evidencias", exist_ok=True)
+
+    # 1. Preenche o campo 'Base URL' no Environment do relatório
+    protheus_url = os.getenv("PROTHEUS_URL", "Não configurado")
+    config.option.base_url = protheus_url
 
     args = config.args
     nome_base = "relatorio_execucao"
@@ -55,19 +57,24 @@ def pytest_html_report_title(report):
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """Hook que anexa o CSS do arquivo style.css e insere as evidências no relatório."""
+    """Hook que anexa o CSS, adiciona links customizados e insere as evidências."""
     outcome = yield
     report = outcome.get_result()
 
     if report.when == "call":
         extras = getattr(report, "extras", [])
+        import pytest_html
 
-        # Lê e injeta o conteúdo do arquivo style.css
+        # Injeta o CSS com a fonte Inter ampliada
         css_conteudo = carregar_css_customizado()
         if css_conteudo:
-            import pytest_html
             extras.append(pytest_html.extras.html(css_conteudo))
 
+        # 2. Preenche a coluna 'Links' com atalho para a URL do sistema ou documentação
+        url_sistema = os.getenv("PROTHEUS_URL", "#")
+        extras.append(pytest_html.extras.url(url_sistema, name="Acessar Sistema"))
+
+        # Anexa evidências/screenshots da etapa
         evidencias = getattr(item, "_evidencias", [])
         for caminho_foto, nome_passo in evidencias:
             try:
