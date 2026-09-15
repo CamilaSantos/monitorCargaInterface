@@ -17,52 +17,65 @@ class NavigationPage:
 
     def obter_informacoes_ambiente(self) -> str:
         """
-        Captura o texto dos spans internos dos wa-buttons via busca direta por IDs 
-        compatíveis com a barra de ferramentas (padrão #COMP...dict-tbutton).
+        Captura o texto do 1º botão (Ambiente/Banco) e do 4º botão (Empresa/Filial) 
+        restringindo a busca estritamente aos botões localizados no cabeçalho superior.
         """
         try:
             self.page.wait_for_timeout(2000)
 
-            # O Playwright consegue perfurar o Shadow DOM diretamente especificando as tags filhas.
-            # Este seletor busca qualquer wa-button com ID iniciando em COMP e pega o span interno.
-            seletor_spans = "wa-button[id^='COMP'].dict-tbutton span"
-
             contextos = [self.page] + list(self.page.frames)
 
             for ctx in contextos:
-                locator = ctx.locator(seletor_spans)
+                # Seleciona os botões dict-tbutton
+                locator = ctx.locator("wa-button.dict-tbutton, wa-panel.dict-tpanel wa-button")
                 total = locator.count()
 
-                if total > 0:
-                    textos_capturados = []
+                botões_cabecalho = []
 
-                    for i in range(total):
-                        elem = locator.nth(i)
-                        # Garante que o span está visível e possui conteúdo válido
-                        if elem.is_visible():
-                            texto = elem.inner_text().strip()
+                for i in range(total):
+                    elem = locator.nth(i)
+                    try:
+                        box = elem.bounding_box()
+                        # Filtra apenas botões localizados na barra superior (coordenada Y/top < 60px)
+                        if box and box["y"] < 60 and elem.is_visible():
+                            # Obtém o atributo caption ou o texto interno do span
+                            texto = elem.get_attribute("caption") or elem.inner_text()
                             texto_limpo = sanitizar_texto(texto)
 
-                            # Filtra botões irrelevantes (Log Off, vazios ou marcadores temporários)
+                            # Descarta 'Log Off', 'Trocar módulo', 'xxx' e textos vazios
                             if (
                                 texto_limpo
                                 and len(texto_limpo) > 2
                                 and not re.search(r"log\s*off", texto_limpo, re.IGNORECASE)
+                                and not re.search(r"trocar\s*módulo", texto_limpo, re.IGNORECASE)
                                 and texto_limpo.lower() != "xxx"
                             ):
-                                if texto_limpo not in textos_capturados:
-                                    textos_capturados.append(texto_limpo)
+                                botões_cabecalho.append((box["x"], texto_limpo))
+                    except Exception:
+                        continue
 
-                    # Retorna o 1º botão (Ambiente/Banco) e o 3º botão (Empresa/Filial) da lista válida
-                    if len(textos_capturados) >= 2:
-                        return f"{textos_capturados[0]} / {textos_capturados[-1]}"
-                    elif len(textos_capturados) == 1:
-                        return textos_capturados[0]
+                if botões_cabecalho:
+                    # Ordena os botões estritamente da esquerda para a direita (posição X na tela)
+                    botões_cabecalho.sort(key=lambda item: item[0])
+                    textos_ordenados = [item[1] for item in botões_cabecalho]
+
+                    # Remove possíveis duplicatas mantendo a ordem
+                    unicos = []
+                    for t in textos_ordenados:
+                        if t not in unicos:
+                            unicos.append(t)
+
+                    # unicos[0] é o Ambiente/Banco e unicos[-1] é a Empresa/Filial
+                    if len(unicos) >= 2:
+                        return f"{unicos[0]} / {unicos[-1]}"
+                    elif len(unicos) == 1:
+                        return unicos[0]
 
             return "Informação de ambiente não localizada na página"
 
         except Exception as e:
             return f"Erro na captura do ambiente: {str(e)}"
+          
     def obter_banco_dados(self) -> str:
         """Alias mantido para compatibilidade."""
         return self.obter_informacoes_ambiente()
