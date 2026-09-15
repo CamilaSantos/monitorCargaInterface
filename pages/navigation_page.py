@@ -17,48 +17,57 @@ class NavigationPage:
 
     def obter_informacoes_ambiente(self) -> str:
         """
-        Captura o texto do cabeçalho do Protheus percorrendo recursivamente os Shadow Roots.
-        Caminho DOM ref: wa-panel -> wa-button -> shadow-root -> button -> span
+        Captura o texto do primeiro botão do cabeçalho do Protheus (informações do ambiente/banco),
+        desconsiderando botões utilitários como 'Log Off'.
         """
         try:
-            # Dá um tempo para garantir a renderização completa da barra superior
-            self.page.wait_for_timeout(3000)
+            self.page.wait_for_timeout(2000)
 
-            # Script JS que faz uma varredura profunda cruzando qualquer nivel de Shadow DOM
             script_js = """
             () => {
-                function extrairTextoDeep(root) {
+                function extrairTextoPrimeiroBotao(root) {
                     if (!root) return null;
                     
-                    // 1. Procura primeiro pelos botões específicos de ambiente/empresa (dict-tbutton ou dict-tpanel)
-                    const elementosAlvo = root.querySelectorAll('wa-button.dict-tbutton, wa-panel.dict-tpanel, [class*="dict-tbutton"], [class*="dict-tpanel"]');
-                    for (let el of elementosAlvo) {
+                    // Seleciona todos os botões da barra que possuem a classe dict-tbutton ou estao em wa-panel
+                    const elementos = Array.from(root.querySelectorAll('wa-button.dict-tbutton, wa-panel.dict-tpanel, [class*="dict-tbutton"]'));
+                    
+                    for (let el of elementos) {
                         let text = el.getAttribute('caption') || el.innerText || el.textContent;
-                        if (text && text.trim().length > 3) {
-                            return text.trim();
+                        
+                        // Se estiver no shadowRoot do próprio wa-button
+                        if ((!text || !text.trim()) && el.shadowRoot) {
+                            const btnInterno = el.shadowRoot.querySelector('button, span');
+                            if (btnInterno) {
+                                text = btnInterno.innerText || btnInterno.textContent;
+                            }
                         }
-                        if (el.shadowRoot) {
-                            let subText = extrairTextoDeep(el.shadowRoot);
-                            if (subText) return subText;
+
+                        if (text) {
+                            text = text.trim();
+                            // Ignora o botão de Log Off e textos muito curtos
+                            if (text.length > 3 && !text.toLowerCase().includes('log off')) {
+                                return text;
+                            }
                         }
                     }
 
-                    // 2. Se não achou pelas classes específicas, percorre todos os filhos com shadowRoot
+                    // Se não encontrou no nível atual, procura dentro dos shadowRoots dos filhos
                     const todosComShadow = root.querySelectorAll('*');
                     for (let el of todosComShadow) {
                         if (el.shadowRoot) {
-                            let subText = extrairTextoDeep(el.shadowRoot);
-                            if (subText) return subText;
+                            let subText = extrairTextoPrimeiroBotao(el.shadowRoot);
+                            if (subText && !subText.toLowerCase().includes('log off')) {
+                                return subText;
+                            }
                         }
                     }
                     return null;
                 }
 
-                return extrairTextoDeep(document);
+                return extrairTextoPrimeiroBotao(document);
             }
             """
 
-            # Executa a busca na página principal e em todos os frames
             contextos = [self.page] + list(self.page.frames)
 
             for ctx in contextos:
