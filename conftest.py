@@ -150,7 +150,7 @@ def pytest_metadata(metadata, config):
 
 
 def pytest_html_results_summary(prefix, summary, postfix, session):
-    """Calcula o tempo total da execução e injeta o bloco com Status Geral no topo."""
+    """Calcula o tempo total da execução, injeta o Status Geral e o botão para Gerar PDF."""
     global TEMPO_INICIO_SESSAO
 
     tempo_total_segundos = time.time() - TEMPO_INICIO_SESSAO
@@ -164,14 +164,45 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
     else:
         status_geral = '<span style="color:#16a34a; font-weight:bold; background:#dcfce7; padding:4px 10px; border-radius:4px;">✅ SUCESSO (Todos os testes passaram)</span>'
 
+    # Bloco HTML com o Botão e a Lógica JS de expansão
     prefix.append(
         f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:16px; margin-bottom:20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="display:flex; gap:30px; font-size:15px; font-family:'Inter', sans-serif;">
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:16px; margin-bottom:20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; gap:30px; font-size:15px; font-family:'Inter', sans-serif; align-items:center;">
                 <div><b>Status da Suíte:</b> {status_geral}</div>
                 <div><b>Tempo Total de Execução:</b> <span style="font-weight:600; color:#0f172a;">{tempo_formatado}</span></div>
             </div>
+            <div>
+                <button class="btn-export-pdf" onclick="gerarPDFComDetalhesAbertos()">
+                    📄 Salvar como PDF
+                </button>
+            </div>
         </div>
+
+        <script>
+        function gerarPDFComDetalhesAbertos() {{
+            // 1. Abre todas as seções de detalhes e sanfonas de testes do relatório
+            const todosDetalhes = document.querySelectorAll('details, .collapsible, tbody.results');
+            todosDetalhes.forEach(el => {{
+                if (el.tagName.toLowerCase() === 'details') {{
+                    el.setAttribute('open', 'true');
+                }}
+                el.classList.add('collapsed-false');
+                el.classList.remove('collapsed');
+            }});
+
+            // 2. Expande tabelas e sub-elementos internos do pytest-html v4
+            const elementosOcultos = document.querySelectorAll('.log, .extra, .empty');
+            elementosOcultos.forEach(el => {{
+                el.style.display = 'block';
+            }});
+
+            // 3. Aguarda 300ms para renderização das imagens antes de abrir a tela de impressão/PDF
+            setTimeout(() => {{
+                window.print();
+            }}, 300);
+        }}
+        </script>
         """
     )
 

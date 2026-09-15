@@ -408,3 +408,70 @@ h1 {
 .evidencia-img:hover {
     transform: scale(1.01);
 }
+
+/* ==============================================================================
+  GERAÇÃO DO PDF / IMPRESSÃO
+   ============================================================================== */
+
+
+/* Botão de Exportar PDF na tela */
+.btn-export-pdf {
+    background-color: #2563eb;
+    color: #ffffff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 10px;
+}
+
+.btn-export-pdf:hover {
+    background-color: #1d4ed8;
+}
+
+/* ==============================================================================
+   REGRAS EXCLUSIVAS PARA GERAÇÃO DO PDF / IMPRESSÃO
+   ============================================================================== */
+@media print {
+    /* Oculta botões de controle e navegação no PDF */
+    .btn-export-pdf,
+    #image-uploader,
+    .filter,
+    .controls,
+    nav {
+        display: none !important;
+    }
+
+    /* Força a exibição de todos os blocos de detalhes de testes */
+    details {
+        display: block !important;
+    }
+
+    details[open] summary ~ * {
+        display: block !important;
+    }
+
+    /* Ajuste de margens e quebra de páginas */
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 12pt;
+    }
+
+    .evidencia-card {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        margin-bottom: 15px;
+    }
+
+    .evidencia-img {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+}
