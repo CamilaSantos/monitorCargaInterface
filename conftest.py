@@ -17,7 +17,7 @@ CAMINHO_STYLE_CSS = os.path.join(os.path.dirname(__file__), "style.css")
 # Variáveis globais para controle de tempo e armazenamento dos dados de ambiente
 TEMPO_INICIO_SESSAO = 0.0
 DADOS_SISTEMA = {
-    "info_ambiente": "Pendente de execução (Aguardando captura da NavigationPage)"
+    "info_ambiente": "Pendente de execução (Aguardando captura)"
 }
 
 
@@ -70,14 +70,12 @@ def pytest_html_report_title(report):
 @pytest.hookimpl(tryfirst=True)
 def pytest_metadata(metadata, config):
     """Limpa metadados padrão do Pytest e adiciona informações customizadas da execução."""
-    # Remove as informações padrão do sistema
     metadata.pop("JAVA_HOME", None)
     metadata.pop("Plugins", None)
     metadata.pop("Packages", None)
     metadata.pop("Platform", None)
     metadata.pop("Python", None)
 
-    # Identifica o comando e o arquivo rodado no CMD
     args = config.args
     comando_executado = " ".join(args) if args else "Todos os Testes"
     nome_arquivo = "N/A"
@@ -87,13 +85,11 @@ def pytest_metadata(metadata, config):
             nome_arquivo = os.path.basename(arg).split("::")[0]
             break
 
-    # Registra os novos metadados na tabela inicial
     metadata["Arquivo de Teste Executado"] = nome_arquivo
     metadata["Comando Solicitado (CMD)"] = f"pytest {comando_executado}"
     metadata["Base URL"] = os.getenv("PROTHEUS_URL", "Não configurada")
-    metadata["Informações do Sistema (Empresa/Banco/Build)"] = (
-        lambda: DADOS_SISTEMA["info_ambiente"]
-    )
+    # Referência direta à chave do dicionário global
+    metadata["Informações do Sistema (Empresa/Banco/Build)"] = DADOS_SISTEMA["info_ambiente"]
 
 
 def pytest_html_results_summary(prefix, summary, postfix, session):
@@ -137,16 +133,13 @@ def pytest_runtest_makereport(item, call):
         extras = getattr(report, "extras", [])
         import pytest_html
 
-        # Injeta o CSS customizado
         css_conteudo = carregar_css_customizado()
         if css_conteudo:
             extras.append(pytest_html.extras.html(css_conteudo))
 
-        # Preenche a coluna 'Links' com atalho para a URL do sistema
         url_sistema = os.getenv("PROTHEUS_URL", "#")
         extras.append(pytest_html.extras.url(url_sistema, name="Acessar Sistema"))
 
-        # Anexa evidências/screenshots da etapa
         evidencias = getattr(item, "_evidencias", [])
         for caminho_foto, nome_passo in evidencias:
             try:
@@ -208,10 +201,7 @@ def protheus_url():
 
 @pytest.fixture(scope="session")
 def obter_config_perfil():
-    """Lê do .env as configurações de um perfil específico usando o prefixo.
-
-    Exemplo de uso no teste: config = obter_config_perfil("COMERCIAL")
-    """
+    """Lê do .env as configurações de um perfil específico usando o prefixo."""
 
     def _carregar_perfil(perfil: str) -> dict:
         prefixo = f"PROTHEUS_{perfil.upper()}_"
@@ -236,9 +226,7 @@ def obter_config_perfil():
 
 @pytest.fixture(scope="session")
 def pagina_protheus(browser, protheus_url):
-    """FIXTURE DE SESSÃO: Prepara a aba do navegador, navega até a URL base do Protheus
-    e configura os timeouts globais.
-    """
+    """FIXTURE DE SESSÃO: Prepara a aba do navegador e acessa o Protheus."""
     context = browser.new_context()
     page = context.new_page()
 
@@ -275,8 +263,17 @@ def environment_page(pagina_protheus):
 
 @pytest.fixture(scope="session")
 def navigation_page(pagina_protheus):
-    """Instancia a NavigationPage (Passo 4)."""
-    return NavigationPage(pagina_protheus)
+    """Instancia a NavigationPage (Passo 4) e realiza a captura automática dos dados do ambiente."""
+    nav = NavigationPage(pagina_protheus)
+    
+    yield nav
+    
+    # Captura automática ao final da sessão/execução dos testes
+    try:
+        texto_capturado = nav.obter_informacoes_ambiente()
+        DADOS_SISTEMA["info_ambiente"] = texto_capturado
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="session")
