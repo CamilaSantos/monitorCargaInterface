@@ -15,7 +15,7 @@ class NavigationPage:
     def __init__(self, page: Page):
         self.page = page
 
-   def obter_informacoes_ambiente(self) -> str:
+    def obter_informacoes_ambiente(self) -> str:
         """
         Captura os botões da barra superior via Shadow DOM e concatena
         o 1º botão (Ambiente/Banco) e o 3º botão (Empresa/Filial) no formato: 'Botão1 / Botão3'.
@@ -30,7 +30,6 @@ class NavigationPage:
                 function coletarBotoes(root) {
                     if (!root) return;
 
-                    // Busca elementos de botão na ordem exata do DOM (esquerda para a direita)
                     const elementos = Array.from(root.querySelectorAll('wa-button.dict-tbutton, wa-panel.dict-tpanel, [class*="dict-tbutton"]'));
                     
                     for (let el of elementos) {
@@ -44,15 +43,13 @@ class NavigationPage:
                         }
 
                         if (text) {
-                            text = text.strip ? text.strip() : text.trim();
-                            // Guarda todos os botões visíveis da barra
+                            text = text.trim();
                             if (text.length > 0) {
                                 botoesValidos.push(text);
                             }
                         }
                     }
 
-                    // Trata Shadow DOMs aninhados
                     const todosComShadow = root.querySelectorAll('*');
                     for (let el of todosComShadow) {
                         if (el.shadowRoot) {
@@ -63,16 +60,13 @@ class NavigationPage:
 
                 coletarBotoes(document);
 
-                // Garante a remoção de duplicatas mantendo a ordem de aparição na tela
                 const unicos = botoesValidos.filter((item, index) => botoesValidos.indexOf(item) === index);
 
                 if (unicos.length >= 3) {
-                    // Pega o 1º botão (índice 0) e o 3º botão (índice 2)
                     const botao1 = unicos[0];
                     const botao3 = unicos[2];
                     return `${botao1} / ${botao3}`;
                 } else if (unicos.length > 0) {
-                    // Fallback caso encontre menos botões que o esperado
                     return unicos[0];
                 }
 
@@ -94,7 +88,7 @@ class NavigationPage:
             return "Informação de ambiente não localizada na página"
 
         except Exception as e:
-            return f"Erro na captura do ambiente: {str(e)}" 
+            return f"Erro na captura do ambiente: {str(e)}"
 
     def obter_banco_dados(self) -> str:
         """Alias mantido para compatibilidade."""
