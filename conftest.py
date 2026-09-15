@@ -10,17 +10,23 @@ from pages.smart_hub_page import SmartHubPage
 
 load_dotenv()
 
-
-# Timeout padrão lido do .env (padrão 60s)
 TIMEOUT_PADRAO = int(os.getenv("PROTHEUS_TIMEOUT", "60000"))
 
+# Caminho do seu arquivo style.css existente (ajuste o caminho relativo conforme sua pasta)
+CAMINHO_STYLE_CSS = os.path.join(os.path.dirname(__file__), "style.css")
 
-# ==============================================================================
-# CONFIGURAÇÃO DE RELATÓRIO DINÂMICO E EVIDÊNCIAS (PYTEST-HTML)
-# ==============================================================================
+
+def carregar_css_customizado():
+    """Lê o arquivo style.css do projeto e encapsula em uma tag <style>."""
+    if os.path.exists(CAMINHO_STYLE_CSS):
+        with open(CAMINHO_STYLE_CSS, "r", encoding="utf-8") as f:
+            conteudo_css = f.read()
+        return f"<style>\n{conteudo_css}\n</style>"
+    return ""
+
 
 def pytest_configure(config):
-    """Gera o relatório HTML automaticamente com o mesmo nome do arquivo do teste."""
+    """Gera o relatório HTML automaticamente com o mesmo nome do arquivo do teste e associa o CSS."""
     os.makedirs("relatorios", exist_ok=True)
     os.makedirs("evidencias", exist_ok=True)
 
@@ -38,54 +44,43 @@ def pytest_configure(config):
     config.option.self_contained_html = True
 
 
+def pytest_html_report_title(report):
+    """Define o título no relatório HTML."""
+    report.title = "Relatório de Execução de Testes - Protheus Smart Hub"
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """Hook que anexa as evidências (imagens) capturadas no relatório HTML final."""
+    """Hook que anexa o CSS do arquivo style.css e insere as evidências no relatório."""
     outcome = yield
     report = outcome.get_result()
 
     if report.when == "call":
         extras = getattr(report, "extras", [])
-        
-        # Anexa todas as fotos registradas no teste/etapa
+
+        # Lê e injeta o conteúdo do arquivo style.css
+        css_conteudo = carregar_css_customizado()
+        if css_conteudo:
+            import pytest_html
+            extras.append(pytest_html.extras.html(css_conteudo))
+
         evidencias = getattr(item, "_evidencias", [])
         for caminho_foto, nome_passo in evidencias:
             try:
-                import pytest_html
+                caminho_relativo = os.path.relpath(caminho_foto, start="relatorios")
+                
                 html_embed = (
-                    f'<div><p style="font-weight:bold; margin-top:10px;">Evidência: {nome_passo}</p>'
-                    f'<img src="../{caminho_foto}" alt="{nome_passo}" '
-                    f'style="width:600px; height:auto; border:1px solid #ccc; border-radius:4px;" '
-                    f'onclick="window.open(this.src)"/></div>'
+                    f'<div class="evidencia-card">'
+                    f'  <div class="evidencia-titulo">📸 <b>Etapa Concluída:</b> {nome_passo}</div>'
+                    f'  <img class="evidencia-img" src="{caminho_relativo}" alt="{nome_passo}" '
+                    f'       onclick="window.open(this.src)" title="Clique para ampliar"/>'
+                    f'</div>'
                 )
                 extras.append(pytest_html.extras.html(html_embed))
             except Exception:
                 pass
 
         report.extras = extras
-
-
-@pytest.fixture
-def tirar_evidencia(request):
-    """Fixture para tirar print da página e incluir no relatório HTML sem erro de fixture extra."""
-    
-    def _capturar(page, nome_passo: str):
-        if not page or page.is_closed():
-            return
-
-        nome_teste = request.node.name
-        nome_arquivo_foto = f"{nome_teste}_{nome_passo}.png"
-        caminho_foto = os.path.join("evidencias", nome_arquivo_foto)
-
-        # Captura screenshot no Playwright
-        page.screenshot(path=caminho_foto)
-
-        # Registra a evidência no item do Pytest para o hook salvar no relatório
-        if not hasattr(request.node, "_evidencias"):
-            request.node._evidencias = []
-        request.node._evidencias.append((caminho_foto, nome_passo))
-
-    return _capturar
 
 
 # ==============================================================================
