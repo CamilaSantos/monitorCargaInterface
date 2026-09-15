@@ -16,44 +16,39 @@ class NavigationPage:
         self.page = page
 
     def obter_informacoes_ambiente(self) -> str:
-        """Captura o texto completo da barra superior/caixa de diálogo,
-
-        contendo Empresa, Banco de Dados, Build/Versão e Ambiente.
-        """
+        """Captura o texto contido no span/button dentro do Shadow DOM do cabeçalho."""
         try:
-            seletor = (
-                "wa-messagebar-item button, "
-                "custom-element button, "
-                "wa-dialog[id*='COMP']"
-            )
+            # Seletores diretos mapeados para o Shadow DOM e fallback para os frames
+            seletores = [
+                "wa-panel button span",
+                "custom-element button span",
+                "div.dict-tbutton button span",
+                "wa-button button span",
+                "wa-panel",
+            ]
 
-            # Procura o elemento na página principal ou dentro dos frames
-            elementos = self.page.locator(seletor)
+            contextos = [self.page] + list(self.page.frames)
 
-            if elementos.count() == 0:
-                for frame in self.page.frames:
-                    elem_frame = frame.locator(seletor)
-                    if elem_frame.count() > 0:
-                        elementos = elem_frame
-                        break
-
-            if elementos.count() > 0:
-                elemento = elementos.first
-                texto_capturado = (
-                    elemento.get_attribute("name")
-                    or elemento.get_attribute("aria-label")
-                    or elemento.inner_text()
-                )
-
-                if texto_capturado and texto_capturado.strip():
-                    return " ".join(texto_capturado.split())
+            for ctx in contextos:
+                for seletor in seletores:
+                    try:
+                        locator = ctx.locator(seletor)
+                        total = locator.count()
+                        for i in range(total):
+                            elem = locator.nth(i)
+                            texto = elem.inner_text()
+                            if texto and len(texto.strip()) > 3:
+                                texto_limpo = " ".join(texto.split())
+                                return texto_limpo
+                    except Exception:
+                        continue
 
             return "Informação de ambiente não localizada na página"
         except Exception as e:
             return f"Não foi possível capturar os dados do ambiente: {str(e)}"
 
     def obter_banco_dados(self) -> str:
-        """Alias mantido para compatibilidade com chamadas anteriores."""
+        """Alias mantido para compatibilidade."""
         return self.obter_informacoes_ambiente()
 
     def _obter_contexto(self):
@@ -69,20 +64,14 @@ class NavigationPage:
     def _tratar_dialogos_sequenciais(
         self, tempo_limite_total: int = 30, intervalo_checagem: float = 1.5
     ):
-        """Trata janelas e pop-ups encadeados (ex: Parâmetros -> Aviso 'Atenção' -> Moedas)
-
-        que surgem com atraso de rede (20s+). Se nenhum diálogo novo surgir,
-        finaliza a etapa.
-        """
+        """Trata janelas e pop-ups encadeados (ex: Parâmetros -> Aviso 'Atenção' -> Moedas)."""
         tempo_decorrido = 0.0
 
         while tempo_decorrido < tempo_limite_total:
             contexto = self._obter_contexto()
             dialogo_tratado = False
 
-            # -------------------------------------------------------------------
-            # 1. CASO 1: Pop-up de Aviso/Atenção com botão fechar 'X' no cabeçalho
-            # -------------------------------------------------------------------
+            # 1. CASO 1: Pop-up de Aviso/Atenção
             dialogo_atencao = contexto.locator("wa-dialog").filter(
                 has_text=re.compile(r"Atenção", re.IGNORECASE)
             )
@@ -98,9 +87,7 @@ class NavigationPage:
                     dialogo_atencao.first.locator("div, span").last.click(force=True)
                     dialogo_tratado = True
 
-            # -------------------------------------------------------------------
-            # 2. CASO 2: Telas de Confirmação Padrão (Moedas, Parâmetros, etc.)
-            # -------------------------------------------------------------------
+            # 2. CASO 2: Telas de Confirmação Padrão
             if not dialogo_tratado:
                 textos_confirmacao = ["Confirmar", "OK", "Sim", "Salvar", "Avançar"]
 
@@ -128,17 +115,12 @@ class NavigationPage:
                     if dialogo_tratado:
                         break
 
-            # -------------------------------------------------------------------
-            # Controle do Loop de Aguarde
-            # -------------------------------------------------------------------
             if dialogo_tratado:
                 tempo_decorrido = 0.0
-
                 try:
                     self.page.wait_for_load_state("networkidle", timeout=5000)
                 except PlaywrightTimeoutError:
                     pass
-
                 self.page.wait_for_timeout(3000)
             else:
                 self.page.wait_for_timeout(int(intervalo_checagem * 1000))
@@ -204,5 +186,4 @@ class NavigationPage:
 
             self.page.wait_for_timeout(2000)
 
-        # Trata janelas sequenciais e modais de parametrização
         self._tratar_dialogos_sequenciais(tempo_limite_total=25)

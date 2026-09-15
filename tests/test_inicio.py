@@ -1,4 +1,5 @@
 import pytest
+import conftest
 
 PERFIL = "INTEGRACAO"
 
@@ -29,6 +30,10 @@ def test_03_configurar_ambiente(config, environment_page, tirar_evidencia):
 
 def test_04_navegar_menu(config, navigation_page, tirar_evidencia):
     navigation_page.navegar(*config["menu"])
+    
+    # Captura o texto do span visível no Shadow DOM e armazena globalmente
+    conftest.DADOS_SISTEMA["info_ambiente"] = navigation_page.obter_informacoes_ambiente()
+    
     tirar_evidencia(navigation_page.page, "04_navegacao_menu")
 
 

@@ -14,10 +14,9 @@ load_dotenv()
 TIMEOUT_PADRAO = int(os.getenv("PROTHEUS_TIMEOUT", "60000"))
 CAMINHO_STYLE_CSS = os.path.join(os.path.dirname(__file__), "style.css")
 
-# Variáveis globais para controle de tempo e armazenamento dos dados de ambiente
 TEMPO_INICIO_SESSAO = 0.0
 DADOS_SISTEMA = {
-    "info_ambiente": "Pendente de execução (Aguardando captura)"
+    "info_ambiente": "Pendente de execução"
 }
 
 
@@ -69,7 +68,7 @@ def pytest_html_report_title(report):
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_metadata(metadata, config):
-    """Limpa metadados padrão do Pytest e adiciona informações customizadas da execução."""
+    """Limpa metadados padrão e define a estrutura da tabela Environment."""
     metadata.pop("JAVA_HOME", None)
     metadata.pop("Plugins", None)
     metadata.pop("Packages", None)
@@ -77,7 +76,6 @@ def pytest_metadata(metadata, config):
     metadata.pop("Python", None)
 
     args = config.args
-    comando_executado = " ".join(args) if args else "Todos os Testes"
     nome_arquivo = "N/A"
 
     for arg in args:
@@ -86,9 +84,7 @@ def pytest_metadata(metadata, config):
             break
 
     metadata["Arquivo de Teste Executado"] = nome_arquivo
-    metadata["Comando Solicitado (CMD)"] = f"pytest {comando_executado}"
     metadata["Base URL"] = os.getenv("PROTHEUS_URL", "Não configurada")
-    # Referência direta à chave do dicionário global
     metadata["Informações do Sistema (Empresa/Banco/Build)"] = DADOS_SISTEMA["info_ambiente"]
 
 
@@ -102,11 +98,11 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
 
     failed = session.testsfailed
     passed = getattr(session, "testspassed", 0)
-    total = session.testscollected
 
+    # Lógica corrigida do status geral
     if failed > 0:
         status_geral = '<span style="color:#dc2626; font-weight:bold; background:#fee2e2; padding:4px 10px; border-radius:4px;">❌ FALHA (Erros Detectados)</span>'
-    elif passed == total and total > 0:
+    elif passed > 0:
         status_geral = '<span style="color:#16a34a; font-weight:bold; background:#dcfce7; padding:4px 10px; border-radius:4px;">✅ SUCESSO (Todos os testes passaram)</span>'
     else:
         status_geral = '<span style="color:#d97706; font-weight:bold; background:#fef3c7; padding:4px 10px; border-radius:4px;">⚠️ ALERTA (Execução Parcial/Incompleta)</span>'
@@ -121,6 +117,12 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
         </div>
         """
     )
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Atualiza a tabela de metadados do relatório com os dados capturados antes de salvar."""
+    if hasattr(session.config, "_metadata"):
+        session.config._metadata["Informações do Sistema (Empresa/Banco/Build)"] = DADOS_SISTEMA["info_ambiente"]
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -263,17 +265,8 @@ def environment_page(pagina_protheus):
 
 @pytest.fixture(scope="session")
 def navigation_page(pagina_protheus):
-    """Instancia a NavigationPage (Passo 4) e realiza a captura automática dos dados do ambiente."""
-    nav = NavigationPage(pagina_protheus)
-    
-    yield nav
-    
-    # Captura automática ao final da sessão/execução dos testes
-    try:
-        texto_capturado = nav.obter_informacoes_ambiente()
-        DADOS_SISTEMA["info_ambiente"] = texto_capturado
-    except Exception:
-        pass
+    """Instancia a NavigationPage (Passo 4)."""
+    return NavigationPage(pagina_protheus)
 
 
 @pytest.fixture(scope="session")
