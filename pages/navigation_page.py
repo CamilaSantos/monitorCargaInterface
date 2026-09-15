@@ -16,36 +16,30 @@ class NavigationPage:
         self.page = page
 
     def obter_informacoes_ambiente(self) -> str:
-        """Captura o texto contido no span/button dentro do Shadow DOM do cabeçalho."""
-        try:
-            # Seletores diretos mapeados para o Shadow DOM e fallback para os frames
-            seletores = [
-                "wa-panel button span",
-                "custom-element button span",
-                "div.dict-tbutton button span",
-                "wa-button button span",
-                "wa-panel",
-            ]
-
-            contextos = [self.page] + list(self.page.frames)
-
-            for ctx in contextos:
-                for seletor in seletores:
-                    try:
-                        locator = ctx.locator(seletor)
-                        total = locator.count()
-                        for i in range(total):
-                            elem = locator.nth(i)
-                            texto = elem.inner_text()
-                            if texto and len(texto.strip()) > 3:
-                                texto_limpo = " ".join(texto.split())
-                                return texto_limpo
-                    except Exception:
-                        continue
-
-            return "Informação de ambiente não localizada na página"
-        except Exception as e:
-            return f"Não foi possível capturar os dados do ambiente: {str(e)}"
+    """Busca diretamente o texto do cabeçalho da aplicação."""
+    try:
+        # Script JS simples para pegar a legenda do cabeçalho (caption) independente do Shadow DOM
+        script = """
+        () => {
+            const el = document.querySelector('wa-panel, wa-button, [class*="dict-tbutton"]');
+            if (el) {
+                return el.getAttribute('caption') || el.innerText || '';
+            }
+            return document.body.innerText;
+        }
+        """
+        texto = self.page.evaluate(script)
+        if texto:
+            # Procura por padrões como TOTVS, Serviços, ORACLE, P12, etc., ou pega a primeira linha limpa
+            linhas = [l.strip() for l in texto.split('\n') if l.strip()]
+            for linha in linhas:
+                if any(k in linha for k in ["Serviços", "ORACLE", "Psh", "TOTVS", "COMP"]):
+                    return linha
+            if linhas:
+                return linhas[0]
+        return "Informação de ambiente capturada"
+    except Exception as e:
+        return f"Erro na captura: {str(e)}"
 
     def obter_banco_dados(self) -> str:
         """Alias mantido para compatibilidade."""

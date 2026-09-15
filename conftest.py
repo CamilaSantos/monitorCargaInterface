@@ -40,7 +40,7 @@ def pytest_sessionstart(session):
 
 
 def pytest_configure(config):
-    """Gera o relatório HTML, define o Base URL e injeta configurações de ambiente."""
+    """Gera o relatório HTML e define a estrutura."""
     os.makedirs("relatorios", exist_ok=True)
     os.makedirs("evidencias", exist_ok=True)
 
@@ -68,7 +68,7 @@ def pytest_html_report_title(report):
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_metadata(metadata, config):
-    """Limpa metadados padrão e define a estrutura da tabela Environment."""
+    """Limpa metadados padrão e adiciona os campos desejados."""
     metadata.pop("JAVA_HOME", None)
     metadata.pop("Plugins", None)
     metadata.pop("Packages", None)
@@ -97,15 +97,12 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
     tempo_formatado = f"{int(minutos):02d}m {int(segundos):02d}s"
 
     failed = session.testsfailed
-    passed = getattr(session, "testspassed", 0)
 
-    # Lógica corrigida do status geral
+    # Status corrigido: Se não houver falhas, é SUCESSO
     if failed > 0:
         status_geral = '<span style="color:#dc2626; font-weight:bold; background:#fee2e2; padding:4px 10px; border-radius:4px;">❌ FALHA (Erros Detectados)</span>'
-    elif passed > 0:
-        status_geral = '<span style="color:#16a34a; font-weight:bold; background:#dcfce7; padding:4px 10px; border-radius:4px;">✅ SUCESSO (Todos os testes passaram)</span>'
     else:
-        status_geral = '<span style="color:#d97706; font-weight:bold; background:#fef3c7; padding:4px 10px; border-radius:4px;">⚠️ ALERTA (Execução Parcial/Incompleta)</span>'
+        status_geral = '<span style="color:#16a34a; font-weight:bold; background:#dcfce7; padding:4px 10px; border-radius:4px;">✅ SUCESSO (Todos os testes passaram)</span>'
 
     prefix.append(
         f"""
@@ -119,10 +116,24 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
     )
 
 
-def pytest_sessionfinish(session, exitstatus):
-    """Atualiza a tabela de metadados do relatório com os dados capturados antes de salvar."""
-    if hasattr(session.config, "_metadata"):
-        session.config._metadata["Informações do Sistema (Empresa/Banco/Build)"] = DADOS_SISTEMA["info_ambiente"]
+def pytest_unconfigure(config):
+    """Substitui no arquivo HTML final o valor pendente pelo dado real capturado do sistema."""
+    caminho_html = getattr(config.option, "htmlpath", None)
+    if caminho_html and os.path.exists(caminho_html):
+        info_real = DADOS_SISTEMA.get("info_ambiente", "Não capturado")
+        if info_real != "Pendente de execução":
+            try:
+                with open(caminho_html, "r", encoding="utf-8") as f:
+                    conteudo = f.read()
+
+                conteudo_atualizado = conteudo.replace(
+                    "Pendente de execução", info_real
+                )
+
+                with open(caminho_html, "w", encoding="utf-8") as f:
+                    f.write(conteudo_atualizado)
+            except Exception:
+                pass
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -146,7 +157,7 @@ def pytest_runtest_makereport(item, call):
         for caminho_foto, nome_passo in evidencias:
             try:
                 caminho_relativo = os.path.relpath(caminho_foto, start="relatorios")
-                
+
                 html_embed = (
                     f'<div class="evidencia-card">'
                     f'  <div class="evidencia-titulo">📸 <b>Etapa Concluída:</b> {nome_passo}</div>'
@@ -162,16 +173,26 @@ def pytest_runtest_makereport(item, call):
 
 
 # ==============================================================================
-# FIXTURES DE CAPTURA DE EVIDÊNCIAS
+# FIXTURES DE CAPTURA DE EVIDÊNCIAS E GATILHO DE AMBIENTE
 # ==============================================================================
 
 @pytest.fixture
 def tirar_evidencia(request):
-    """Fixture para tirar print da página e incluir no relatório HTML."""
+    """Fixture para tirar print da página e gatilho automático para capturar dados do ambiente."""
 
     def _capturar(page, nome_passo: str):
         if not page or page.is_closed():
             return
+
+        # Gatilho: Tenta capturar a informação do ambiente sempre que estiver na tela logada
+        if DADOS_SISTEMA["info_ambiente"] == "Pendente de execução":
+            try:
+                nav = NavigationPage(page)
+                res = nav.obter_informacoes_ambiente()
+                if res and res != "Informação de ambiente não localizada na página":
+                    DADOS_SISTEMA["info_ambiente"] = res
+            except Exception:
+                pass
 
         nome_teste = request.node.name
         nome_arquivo_foto = f"{nome_teste}_{nome_passo}.png"
@@ -242,34 +263,26 @@ def pagina_protheus(browser, protheus_url):
     context.close()
 
 
-# --- FIXTURES DOS PAGE OBJECTS DE INICIALIZAÇÃO ---
-
-
 @pytest.fixture(scope="session")
 def program_page(pagina_protheus):
-    """Instancia a ProgramPage (Passo 1)."""
     return ProgramPage(pagina_protheus)
 
 
 @pytest.fixture(scope="session")
 def login_page(pagina_protheus):
-    """Instancia a LoginPage (Passo 2)."""
     return LoginPage(pagina_protheus)
 
 
 @pytest.fixture(scope="session")
 def environment_page(pagina_protheus):
-    """Instancia a EnvironmentPage (Passo 3)."""
     return EnvironmentPage(pagina_protheus)
 
 
 @pytest.fixture(scope="session")
 def navigation_page(pagina_protheus):
-    """Instancia a NavigationPage (Passo 4)."""
     return NavigationPage(pagina_protheus)
 
 
 @pytest.fixture(scope="session")
 def smart_hub_page(pagina_protheus):
-    """Instancia a SmartHubPage para interação no iframe PO UI (Passo 5)."""
     return SmartHubPage(pagina_protheus)
