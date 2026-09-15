@@ -1,4 +1,5 @@
 import os
+import time
 from dotenv import load_dotenv
 import pytest
 
@@ -13,6 +14,12 @@ load_dotenv()
 TIMEOUT_PADRAO = int(os.getenv("PROTHEUS_TIMEOUT", "60000"))
 CAMINHO_STYLE_CSS = os.path.join(os.path.dirname(__file__), "style.css")
 
+# Variáveis globais para controle de tempo e armazenamento dos dados de ambiente
+TEMPO_INICIO_SESSAO = 0.0
+DADOS_SISTEMA = {
+    "info_ambiente": "Pendente de execução (Aguardando captura da NavigationPage)"
+}
+
 
 def carregar_css_customizado():
     """Lê o arquivo style.css do projeto e encapsula em uma tag <style>."""
@@ -24,15 +31,20 @@ def carregar_css_customizado():
 
 
 # ==============================================================================
-# HOOKS E CONFIGURAÇÕES DE RELATÓRIO HTML
+# HOOKS DE CAPTURA DA SESSÃO, METADADOS E RELATÓRIO HTML
 # ==============================================================================
+
+def pytest_sessionstart(session):
+    """Marca o horário exato de início da suíte de testes."""
+    global TEMPO_INICIO_SESSAO
+    TEMPO_INICIO_SESSAO = time.time()
+
 
 def pytest_configure(config):
     """Gera o relatório HTML, define o Base URL e injeta configurações de ambiente."""
     os.makedirs("relatorios", exist_ok=True)
     os.makedirs("evidencias", exist_ok=True)
 
-    # 1. Preenche o campo 'Base URL' no Environment do relatório
     protheus_url = os.getenv("PROTHEUS_URL", "Não configurado")
     config.option.base_url = protheus_url
 
@@ -55,6 +67,66 @@ def pytest_html_report_title(report):
     report.title = "Relatório de Execução de Testes - Protheus Smart Hub"
 
 
+@pytest.hookimpl(tryfirst=True)
+def pytest_metadata(metadata, config):
+    """Limpa metadados padrão do Pytest e adiciona informações customizadas da execução."""
+    # Remove as informações padrão do sistema
+    metadata.pop("JAVA_HOME", None)
+    metadata.pop("Plugins", None)
+    metadata.pop("Packages", None)
+    metadata.pop("Platform", None)
+    metadata.pop("Python", None)
+
+    # Identifica o comando e o arquivo rodado no CMD
+    args = config.args
+    comando_executado = " ".join(args) if args else "Todos os Testes"
+    nome_arquivo = "N/A"
+
+    for arg in args:
+        if "test_" in arg:
+            nome_arquivo = os.path.basename(arg).split("::")[0]
+            break
+
+    # Registra os novos metadados na tabela inicial
+    metadata["Arquivo de Teste Executado"] = nome_arquivo
+    metadata["Comando Solicitado (CMD)"] = f"pytest {comando_executado}"
+    metadata["Base URL"] = os.getenv("PROTHEUS_URL", "Não configurada")
+    metadata["Informações do Sistema (Empresa/Banco/Build)"] = (
+        lambda: DADOS_SISTEMA["info_ambiente"]
+    )
+
+
+def pytest_html_results_summary(prefix, summary, postfix, session):
+    """Calcula o tempo total da execução e injeta o bloco com Status Geral no topo."""
+    global TEMPO_INICIO_SESSAO
+
+    tempo_total_segundos = time.time() - TEMPO_INICIO_SESSAO
+    minutos, segundos = divmod(tempo_total_segundos, 60)
+    tempo_formatado = f"{int(minutos):02d}m {int(segundos):02d}s"
+
+    failed = session.testsfailed
+    passed = getattr(session, "testspassed", 0)
+    total = session.testscollected
+
+    if failed > 0:
+        status_geral = '<span style="color:#dc2626; font-weight:bold; background:#fee2e2; padding:4px 10px; border-radius:4px;">❌ FALHA (Erros Detectados)</span>'
+    elif passed == total and total > 0:
+        status_geral = '<span style="color:#16a34a; font-weight:bold; background:#dcfce7; padding:4px 10px; border-radius:4px;">✅ SUCESSO (Todos os testes passaram)</span>'
+    else:
+        status_geral = '<span style="color:#d97706; font-weight:bold; background:#fef3c7; padding:4px 10px; border-radius:4px;">⚠️ ALERTA (Execução Parcial/Incompleta)</span>'
+
+    prefix.append(
+        f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:16px; margin-bottom:20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; gap:30px; font-size:15px; font-family:'Inter', sans-serif;">
+                <div><b>Status da Suíte:</b> {status_geral}</div>
+                <div><b>Tempo Total de Execução:</b> <span style="font-weight:600; color:#0f172a;">{tempo_formatado}</span></div>
+            </div>
+        </div>
+        """
+    )
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """Hook que anexa o CSS, adiciona links customizados e insere as evidências."""
@@ -65,12 +137,12 @@ def pytest_runtest_makereport(item, call):
         extras = getattr(report, "extras", [])
         import pytest_html
 
-        # Injeta o CSS com a fonte Inter ampliada
+        # Injeta o CSS customizado
         css_conteudo = carregar_css_customizado()
         if css_conteudo:
             extras.append(pytest_html.extras.html(css_conteudo))
 
-        # 2. Preenche a coluna 'Links' com atalho para a URL do sistema ou documentação
+        # Preenche a coluna 'Links' com atalho para a URL do sistema
         url_sistema = os.getenv("PROTHEUS_URL", "#")
         extras.append(pytest_html.extras.url(url_sistema, name="Acessar Sistema"))
 

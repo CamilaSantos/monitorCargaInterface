@@ -322,57 +322,87 @@ tr:hover td { background-color: var(--table-hover); }
    ESTILOS PARA RELATÓRIOS PYTEST-HTML (EVIDÊNCIAS E TABELAS)
    ========================================================================== */
 
+h1 {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 20px !important;
+}
+
+/* Tabelas de Metadados (Environment) e Resultados */
 #environment, #results-table {
+    font-family: 'Inter', sans-serif !important;
     border-collapse: separate !important;
     border-spacing: 0 !important;
     width: 100% !important;
     background: #ffffff !important;
     border-radius: 8px !important;
     overflow: hidden !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
     margin-bottom: 25px !important;
-    border: 1px solid #e2e8f0 !important;
+    border: 1px solid #cbd5e1 !important;
 }
 
 #results-table th, #environment th {
     background-color: #1e293b !important;
     color: #ffffff !important;
-    padding: 12px 16px !important;
+    padding: 14px 18px !important;
     font-size: 14px !important;
+    font-weight: 600 !important;
     text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
     border: none !important;
 }
 
-#results-table tr:hover {
-    background-color: #f1f5f9 !important;
+#results-table td, #environment td {
+    padding: 14px 18px !important;
+    border-top: 1px solid #f1f5f9 !important;
+    font-size: 15px !important;
+    vertical-align: middle !important;
 }
 
+#results-table tr:hover {
+    background-color: #f8fafc !important;
+}
+
+/* Links Customizados na Tabela */
+#results-table a {
+    color: #2563eb !important;
+    font-weight: 500 !important;
+    text-decoration: none !important;
+}
+
+#results-table a:hover {
+    text-decoration: underline !important;
+}
+
+/* Estilização dos Cards de Evidências */
 .evidencia-card {
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 16px;
-    margin-top: 12px;
-    margin-bottom: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    max-width: 820px;
+    margin-top: 10px;
+    margin-bottom: 15px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 10px;
 }
 
 .evidencia-titulo {
     font-weight: 600;
+    margin-bottom: 8px;
     color: #334155;
     font-size: 14px;
-    margin-bottom: 8px;
 }
 
 .evidencia-img {
-    width: 100%;
-    max-width: 800px;
+    max-width: 100%;
     height: auto;
-    border-radius: 6px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s;
 }
 
 .evidencia-img:hover {
