@@ -142,6 +142,17 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     report = outcome.get_result()
 
+    # Tenta capturar a informação do ambiente se ainda estiver pendente ao finalizar o teste
+    if DADOS_SISTEMA["info_ambiente"] == "Pendente de execução" and "pagina_protheus" in item.fixturenames:
+        try:
+            page = item.funcargs["pagina_protheus"]
+            nav = NavigationPage(page)
+            res = nav.obter_informacoes_ambiente()
+            if res and res != "Informação de ambiente não localizada na página":
+                DADOS_SISTEMA["info_ambiente"] = res
+        except Exception:
+            pass
+
     if report.when == "call":
         extras = getattr(report, "extras", [])
         import pytest_html

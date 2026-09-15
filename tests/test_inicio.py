@@ -1,5 +1,4 @@
 import pytest
-import conftest
 
 PERFIL = "INTEGRACAO"
 
@@ -19,21 +18,13 @@ def test_02_autenticar_usuario(config, login_page, tirar_evidencia):
     tirar_evidencia(login_page.page, "02_autenticacao")
 
 
-def test_03_autenticar_e_selecionar_ambiente(config, environment_page, navigation_page, tirar_evidencia):
+def test_03_autenticar_e_selecionar_ambiente(config, environment_page, tirar_evidencia):
     environment_page.selecionar_ambiente(config["grupo"], config["filial"], config["ambiente"])
     tirar_evidencia(environment_page.page, "03_ambiente_selecionado")
 
-    # Captura combinada (Botão 1 / Botão 3)
-    resultado = navigation_page.obter_informacoes_ambiente()
-    conftest.DADOS_SISTEMA["info_ambiente"] = resultado
-
-    print("\n" + "=" * 60)
-    print(f"DEBUG AMBIENTE (BOTÃO 1 / BOTÃO 3): {resultado}")
-    print("=" * 60 + "\n")
-
 
 def test_04_navegar_menu(config, navigation_page, tirar_evidencia):
-    navigation_page.navegar(*config["menu"])    
+    navigation_page.navegar(*config["menu"])
     tirar_evidencia(navigation_page.page, "04_navegacao_menu")
 
 

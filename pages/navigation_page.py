@@ -75,7 +75,7 @@ class NavigationPage:
 
         except Exception as e:
             return f"Erro na captura do ambiente: {str(e)}"
-          
+
     def obter_banco_dados(self) -> str:
         """Alias mantido para compatibilidade."""
         return self.obter_informacoes_ambiente()
