@@ -12,7 +12,7 @@ load_dotenv()
 
 TIMEOUT_PADRAO = int(os.getenv("PROTHEUS_TIMEOUT", "60000"))
 
-# Caminho do seu arquivo style.css existente (ajuste o caminho relativo conforme sua pasta)
+# Caminho do seu arquivo style.css existente
 CAMINHO_STYLE_CSS = os.path.join(os.path.dirname(__file__), "style.css")
 
 
@@ -24,6 +24,10 @@ def carregar_css_customizado():
         return f"<style>\n{conteudo_css}\n</style>"
     return ""
 
+
+# ==============================================================================
+# HOOKS E CONFIGURAÇÕES DE RELATÓRIO HTML
+# ==============================================================================
 
 def pytest_configure(config):
     """Gera o relatório HTML automaticamente com o mesmo nome do arquivo do teste e associa o CSS."""
@@ -84,7 +88,38 @@ def pytest_runtest_makereport(item, call):
 
 
 # ==============================================================================
-# FIXTURES EXISTENTES
+# FIXTURES DE CAPTURA DE EVIDÊNCIAS
+# ==============================================================================
+
+@pytest.fixture
+def tirar_evidencia(request):
+    """Fixture para tirar print da página e incluir no relatório HTML."""
+
+    def _capturar(page, nome_passo: str):
+        if not page or page.is_closed():
+            return
+
+        nome_teste = request.node.name
+        nome_arquivo_foto = f"{nome_teste}_{nome_passo}.png"
+        caminho_foto = os.path.join("evidencias", nome_arquivo_foto)
+
+        page.screenshot(path=caminho_foto)
+
+        if not hasattr(request.node, "_evidencias"):
+            request.node._evidencias = []
+        request.node._evidencias.append((caminho_foto, nome_passo))
+
+    return _capturar
+
+
+@pytest.fixture
+def retirar_evidencia(tirar_evidencia):
+    """Alias para garantir funcionamento caso o teste solicite 'retirar_evidencia'."""
+    return tirar_evidencia
+
+
+# ==============================================================================
+# FIXTURES DE SESSÃO E PAGE OBJECTS
 # ==============================================================================
 
 @pytest.fixture(scope="session")
@@ -102,7 +137,6 @@ def obter_config_perfil():
     def _carregar_perfil(perfil: str) -> dict:
         prefixo = f"PROTHEUS_{perfil.upper()}_"
 
-        # Trata os N níveis de menu do .env
         menu_bruto = os.getenv(f"{prefixo}MENU", "")
         caminho_menu = [
             item.strip() for item in menu_bruto.split(",") if item.strip()
