@@ -17,8 +17,8 @@ class NavigationPage:
 
     def obter_informacoes_ambiente(self) -> str:
         """
-        Captura os botões da barra superior via Shadow DOM e concatena
-        o 1º botão (Ambiente/Banco) e o 3º botão (Empresa/Filial) no formato: 'Botão1 / Botão3'.
+        Captura os botões válidos da barra superior via Shadow DOM, ignorando placeholders (ex: 'xxx'),
+        e concatena as informações de Ambiente/Banco e Empresa/Filial no formato: 'Ambiente / Empresa'.
         """
         try:
             self.page.wait_for_timeout(2000)
@@ -44,7 +44,14 @@ class NavigationPage:
 
                         if (text) {
                             text = text.trim();
-                            if (text.length > 0) {
+                            
+                            // FILTRO: Ignora textos placeholders como 'xxx', 'Log Off' ou strings muito curtas
+                            const textLower = text.toLowerCase();
+                            if (
+                                text.length > 3 && 
+                                !textLower.includes('log off') && 
+                                !textLower.includes('xxx')
+                            ) {
                                 botoesValidos.push(text);
                             }
                         }
@@ -60,13 +67,15 @@ class NavigationPage:
 
                 coletarBotoes(document);
 
+                // Remove duplicatas mantendo a ordem de aparição na tela
                 const unicos = botoesValidos.filter((item, index) => botoesValidos.indexOf(item) === index);
 
-                if (unicos.length >= 3) {
-                    const botao1 = unicos[0];
-                    const botao3 = unicos[2];
-                    return `${botao1} / ${botao3}`;
-                } else if (unicos.length > 0) {
+                // Se houver 2 ou mais botões de negócio válidos
+                if (unicos.length >= 2) {
+                    const botaoAmbiente = unicos[0]; // Agora será o texto real (ex: 'Serviços ORACLE...')
+                    const botaoEmpresa = unicos[1];  // Agora será o grupo/filial (ex: 'Grupo Totvs 1 / Filial Niteroi')
+                    return `${botaoAmbiente} / ${botaoEmpresa}`;
+                } else if (unicos.length === 1) {
                     return unicos[0];
                 }
 
