@@ -10,6 +10,70 @@ from pages.smart_hub_page import SmartHubPage  # <--- Import da nova Page
 
 load_dotenv()
 
+# ==============================================================================
+# HOOK: GERA NOME DO RELATÓRIO HTML IGUAL AO ARQUIVO DE TESTE
+# ==============================================================================
+def pytest_configure(config):
+    """Define o caminho e o nome do relatório HTML com base no arquivo de teste executado."""
+    # Garante que a pasta de relatórios exista
+    os.makedirs("relatorios", exist_ok=True)
+
+    # Captura o nome do arquivo enviado no comando (ex: test_inicial.py)
+    args = config.args
+    nome_base = "relatorio_execucao"
+
+    for arg in args:
+        if arg.startswith("test_") or "test_" in arg:
+            nome_limpo = os.path.basename(arg).replace(".py", "")
+            nome_base = f"{nome_limpo}"
+            break
+
+    caminho_html = os.path.join("relatorios", f"{nome_base}.html")
+    config.option.htmlpath = caminho_html
+    config.option.self_contained_html = True
+
+
+# ==============================================================================
+# FIXTURE: CAPTURA DE EVIDÊNCIA POR ETAPA (SUCESSO OU FALHA)
+# ==============================================================================
+@pytest.fixture(scope="session", autouse=True)
+def criar_pasta_evidencias():
+    """Garante a criação da pasta de evidências/screenshots."""
+    os.makedirs("evidencias", exist_ok=True)
+
+
+@pytest.fixture
+def tirar_evidencia(request, extra):
+    """Fixture utilizada nos testes para capturar e anexar prints no relatório."""
+
+    def _capturar(page, nome_passo: str):
+        if not page or page.is_closed():
+            return
+
+        nome_teste = request.node.name
+        nome_arquivo_foto = f"{nome_teste}_{nome_passo}.png"
+        caminho_foto = os.path.join("evidencias", nome_arquivo_foto)
+
+        # Captura do Playwright
+        page.screenshot(path=caminho_foto)
+
+        # Anexa diretamente no pytest-html
+        try:
+            import pytest_html
+
+            html_embed = (
+                f'<div><p style="font-weight:bold; margin-top:10px;">Evidência - {nome_passo}:</p>'
+                f'<img src="../{caminho_foto}" alt="{nome_passo}" '
+                f'style="width:600px; height:auto; border:1px solid #ccc; border-radius:4px;" '
+                f'onclick="window.open(this.src)"/></div>'
+            )
+            extra.append(pytest_html.extras.html(html_embed))
+        except Exception:
+            pass
+
+    return _capturar
+
+
 # Timeout padrão lido do .env (padrão 60s)
 TIMEOUT_PADRAO = int(os.getenv("PROTHEUS_TIMEOUT", "60000"))
 
