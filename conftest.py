@@ -164,7 +164,6 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
     else:
         status_geral = '<span style="color:#16a34a; font-weight:bold; background:#dcfce7; padding:4px 10px; border-radius:4px;">✅ SUCESSO (Todos os testes passaram)</span>'
 
-    # Bloco HTML com o Botão e a Lógica JS de expansão
     prefix.append(
         f"""
         <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:16px; margin-bottom:20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display:flex; justify-content:space-between; align-items:center;">
@@ -173,34 +172,37 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
                 <div><b>Tempo Total de Execução:</b> <span style="font-weight:600; color:#0f172a;">{tempo_formatado}</span></div>
             </div>
             <div>
-                <button class="btn-export-pdf" onclick="gerarPDFComDetalhesAbertos()">
+                <button class="btn-export-pdf" onclick="abrirEImprimirPDF()">
                     📄 Salvar como PDF
                 </button>
             </div>
         </div>
 
         <script>
-        function gerarPDFComDetalhesAbertos() {{
-            // 1. Abre todas as seções de detalhes e sanfonas de testes do relatório
-            const todosDetalhes = document.querySelectorAll('details, .collapsible, tbody.results');
-            todosDetalhes.forEach(el => {{
+        function abrirEImprimirPDF() {{
+            // 1. Localiza todos os elementos clicáveis da tabela do pytest-html v4 para expandir o conteúdo
+            const linhasColapsaveis = document.querySelectorAll('tr.collapsible, tr.results-table-row, .log-expander, details');
+            
+            linhasColapsaveis.forEach(el => {{
                 if (el.tagName.toLowerCase() === 'details') {{
                     el.setAttribute('open', 'true');
+                }} else {{
+                    // Simula o clique na linha para expandir a área de evidência
+                    el.click();
                 }}
-                el.classList.add('collapsed-false');
-                el.classList.remove('collapsed');
             }});
 
-            // 2. Expande tabelas e sub-elementos internos do pytest-html v4
-            const elementosOcultos = document.querySelectorAll('.log, .extra, .empty');
-            elementosOcultos.forEach(el => {{
+            // 2. Força a exibição de contêineres que possam permanecer ocultos via estilo
+            const extras = document.querySelectorAll('.extra, .extra-wrapper, .logcontainer');
+            extras.forEach(el => {{
                 el.style.display = 'block';
+                el.style.visibility = 'visible';
             }});
 
-            // 3. Aguarda 300ms para renderização das imagens antes de abrir a tela de impressão/PDF
+            // 3. Aguarda a montagem dos elementos no DOM antes de abrir a janela de impressão
             setTimeout(() => {{
                 window.print();
-            }}, 300);
+            }}, 500);
         }}
         </script>
         """
