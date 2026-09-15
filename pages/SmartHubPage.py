@@ -19,7 +19,8 @@ class SmartHubPage:
         """Localiza o iframe interno onde o app Angular com PO UI está rodando."""
         for frame in self.page.frames:
             try:
-                if frame.locator("po-menu, .po-menu-container, po-lookup, .po-lookup-button").count() > 0:
+                # Procura por elementos típicos do PO UI ou pela presença do popover do driver.js
+                if frame.locator("po-menu, .po-menu-container, po-lookup, .po-lookup-button, .driver-popover").count() > 0:
                     return frame
             except Exception:
                 continue
@@ -30,41 +31,48 @@ class SmartHubPage:
         return self.page
 
     def fechar_tutorial_se_existir(self, tempo_espera_ms: int = 5000):
-        """Varre recursivamente todas as instâncias de frames e shadow DOMs gerenciados pelo Playwright."""
+        """Encontra o frame correto do Smart Hub e remove o tutorial ativamente."""
         print("  └─ [INFO] Verificando presença de tutorial onboarding...")
 
-        # Seletor exato do botão de fechar o driver.js
-        seletor_btn = "button.driver-popover-close-btn"
+        # 1. Localiza o frame interno do PO UI
+        frame = self._obter_frame_po_ui()
 
-        # 1. Tenta encontrar o elemento diretamente via Playwright (ele perfura Shadow DOM automaticamente)
+        # 2. Seletor exato do botão de fechar do driver.js
+        btn_close = frame.locator("button.driver-popover-close-btn, .driver-popover-close-btn")
+
         try:
-            btn_global = self.page.locator(seletor_btn).first
-            if btn_global.is_visible(timeout=tempo_espera_ms):
-                btn_global.click(force=True)
-                print("  └─ [OK] Tutorial fechado na página principal/shadow DOM.")
+            # Aguarda o botão ficar visível no frame
+            if btn_close.is_visible(timeout=tempo_espera_ms):
+                # Força o clique no botão
+                btn_close.click(force=True)
+                print("  └─ [OK] Tutorial (driver-popover) fechado via clique no frame!")
                 self.page.wait_for_timeout(1000)
                 return
         except Exception:
             pass
 
-        # 2. Caso esteja isolado em contexto de Iframe/Webview do Protheus, percorre a lista de frames ativos
-        for frame in self.page.frames:
-            try:
-                btn_frame = frame.locator(seletor_btn).first
-                if btn_frame.is_visible(timeout=1000):
-                    btn_frame.click(force=True)
-                    print(f"  └─ [OK] Tutorial fechado dentro do frame: {frame.name or frame.url}")
-                    self.page.wait_for_timeout(1000)
-                    return
-            except Exception:
-                continue
-
-        # 3. Fallback via tecla 'Escape' (o driver.js por padrão fecha o popover ao pressionar ESC)
+        # 3. Fallback JS via Frame: Destrui o popover e a mascara cinza (overlay) diretamente no DOM do frame
         try:
-            self.page.keyboard.press("Escape")
-            print("  └─ [INFO] Tecla ESC enviada para fechar overlay de tutorial.")
+            script_remover_tutorial = """
+            () => {
+                const popover = document.querySelector('.driver-popover, #driver-popover-content');
+                const overlay = document.querySelector('.driver-overlay, svg.driver-overlay');
+                let removeu = false;
+                if (popover) { popover.remove(); removeu = true; }
+                if (overlay) { overlay.remove(); removeu = true; }
+                document.body.classList.remove('driver-active', 'driver-fade');
+                return removeu;
+            }
+            """
+            destruido = frame.evaluate(script_remover_tutorial)
+            if destruido:
+                print("  └─ [OK] Tutorial e Overlay removidos com sucesso via JS do Frame!")
+                self.page.wait_for_timeout(500)
+                return
         except Exception:
             pass
+
+        print("  └─ [INFO] Nenhum tutorial ativo encontrado.")
 
     def selecionar_menu_interno(self, nome_item: str):
         """Clica no menu lateral do PO UI e encerra o tutorial caso seja acionado."""
@@ -86,6 +94,7 @@ class SmartHubPage:
             elem.click(force=True)
             print(f"  └─ [OK] Item '{nome_limpo}' clicado no Smart Hub.")
 
+            # Pausa para renderização do tour do driver.js
             self.page.wait_for_timeout(1500)
             self.fechar_tutorial_se_existir()
 
