@@ -3,6 +3,7 @@ import time
 import json
 from dotenv import load_dotenv
 import pytest
+from playwright.sync_api import sync_playwright  # Importação adicionada
 
 from pages.program_page import ProgramPage
 from pages.login_page import LoginPage
@@ -12,6 +13,9 @@ from pages.smart_hub_page import SmartHubPage
 
 load_dotenv()
 
+
+
+
 TIMEOUT_PADRAO = int(os.getenv("PROTHEUS_TIMEOUT", "60000"))
 CAMINHO_STYLE_CSS = os.path.join(os.path.dirname(__file__), "style.css")
 
@@ -20,6 +24,54 @@ DADOS_SISTEMA = {
     "info_ambiente": "Pendente de execução"
 }
 
+def pytest_unconfigure(config):
+    """
+    Atualiza o arquivo HTML gravado substituindo qualquer versão 
+    do valor "Pendente de execução" pelas informações reais capturadas
+    e gera automaticamente uma cópia do relatório em PDF.
+    """
+    caminho_html = getattr(config.option, "htmlpath", None)
+    if caminho_html and os.path.exists(caminho_html):
+        info_real = DADOS_SISTEMA.get("info_ambiente", "Não capturado")
+
+        # 1. Atualização dos Metadados no HTML
+        if info_real and info_real != "Pendente de execução":
+            try:
+                with open(caminho_html, "r", encoding="utf-8") as f:
+                    conteudo = f.read()
+
+                conteudo_atualizado = conteudo.replace("Pendente de execução", info_real)
+                conteudo_atualizado = conteudo_atualizado.replace(
+                    json.dumps("Pendente de execução")[1:-1], 
+                    json.dumps(info_real)[1:-1]
+                )
+
+                with open(caminho_html, "w", encoding="utf-8") as f:
+                    f.write(conteudo_atualizado)
+            except Exception:
+                pass
+
+        # 2. Conversão Automática do Relatório HTML em PDF
+        try:
+            caminho_pdf = caminho_html.replace(".html", ".pdf")
+            caminho_absoluto_html = os.path.abspath(caminho_html)
+            url_arquivo = f"file://{caminho_absoluto_html}"
+
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                page.goto(url_arquivo, wait_until="networkidle")
+                
+                # Gera o PDF preservando o plano de fundo e imagens de evidências
+                page.pdf(
+                    path=caminho_pdf,
+                    format="A4",
+                    print_background=True,
+                    margin={"top": "10mm", "bottom": "10mm", "left": "10mm", "right": "10mm"}
+                )
+                browser.close()
+        except Exception:
+            pass
 
 def carregar_css_customizado():
     """Lê o arquivo style.css do projeto e encapsula em uma tag <style>."""
