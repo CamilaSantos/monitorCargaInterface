@@ -1,54 +1,35 @@
 import pytest
 
-# Define qual perfil do .env será utilizado neste teste
 PERFIL = "INTEGRACAO"
 
-
-def etapa(titulo: str):
-    """Exibe um cabeçalho formatado para destacar as etapas/baterias do teste no terminal."""
-    largura = 70
-    print("\n" + "=" * largura)
-    print(f"  ETAPA: {titulo.upper()}".center(largura))
-    print("=" * largura)
+@pytest.fixture(scope="module")
+def config(obter_config_perfil):
+    return obter_config_perfil(PERFIL)
 
 
-def test_validar_inicializacao_e_navegacao(
-    obter_config_perfil,
-    program_page,
-    login_page,
-    environment_page,
-    navigation_page,
-    smart_hub_page,
-):
-    # 1. Carrega o dicionário com as variáveis configuradas para o perfil no .env
-    config = obter_config_perfil(PERFIL)
-
-    etapa(f"1. SELECIONANDO PROGRAMA INICIAL ({config['programa']})")
+def test_01_selecionar_programa_inicial(config, program_page):
     program_page.selecionar_modulo(config["programa"])
 
-    etapa(f"2. AUTENTICAÇÃO COM USUÁRIO: {config['usuario']}")
+
+def test_02_autenticar_usuario(config, login_page):
     login_page.realizar_login(config["usuario"], config["senha"])
 
-    etapa(f"3. CONFIGURAÇÃO DE AMBIENTE E FILIAL ({config['grupo']} / {config['filial']})")
+
+def test_03_configurar_ambiente(config, environment_page):
     environment_page.selecionar_ambiente(
         grupo=config["grupo"],
         filial=config["filial"],
         ambiente=config["ambiente"],
     )
 
-    etapa(f"4. NAVEGAÇÃO NO MENU DO PROTHEUS ({' > '.join(config['menu'])})")
+
+def test_04_navegar_menu(config, navigation_page):
     navigation_page.navegar(*config["menu"])
 
-    etapa("5. SELEÇÃO DE MENU INTERNO NO SMART HUB")
+
+def test_05_selecionar_smart_hub(smart_hub_page):
     smart_hub_page.selecionar_menu_interno("Carga Inicial")
 
-    etapa(f"6. SELEÇÃO DA FILIAL DE CARGA ({config['filial']})")
-    smart_hub_page.selecionar_filial_carga(config["filial"])
 
-    etapa("7. VALIDAÇÃO E ASSERÇÃO FINAL DO TESTE")
-    # ASSERT / VALIDAÇÃO:
-    # Garante que a navegação concluiu sem erros e que a página continua ativa
-    assert not navigation_page.page.is_closed(), (
-        "A página foi fechada inesperadamente após a navegação."
-    )
-    print("  └─ [OK] Teste e navegação concluídos com sucesso!")
+def test_06_selecionar_filial_carga(config, smart_hub_page):
+    smart_hub_page.selecionar_filial_carga(config["filial"])
