@@ -26,7 +26,7 @@ class NavigationPage:
             contextos = [self.page] + list(self.page.frames)
 
             for ctx in contextos:
-                # O Playwright atravessa o Shadow DOM nativamente com 'wa-button.dict-tbutton'
+                # O Playwright atravessa o Shadow DOM nativamente com 'wa-button.dict-tbutton' teste
                 botoes = ctx.locator("wa-button.dict-tbutton")
                 total = botoes.count()
 
