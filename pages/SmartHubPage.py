@@ -29,43 +29,42 @@ class SmartHubPage:
             return iframe_element.content_frame
         return self.page
 
-    def fechar_tutorial_se_existir(self, tempo_espera_ms: int = 4000):
-        """Acessa o Shadow DOM do wa-webview e o iframe interno para fechar o popover do tutorial."""
+    def fechar_tutorial_se_existir(self, tempo_espera_ms: int = 5000):
+        """Varre recursivamente todas as instâncias de frames e shadow DOMs gerenciados pelo Playwright."""
         print("  └─ [INFO] Verificando presença de tutorial onboarding...")
-        
-        self.page.wait_for_timeout(1000)
 
-        script_fechar_tutorial = """
-        () => {
-            try {
-                const webview = document.querySelector('wa-webview');
-                if (!webview || !webview.shadowRoot) return false;
+        # Seletor exato do botão de fechar o driver.js
+        seletor_btn = "button.driver-popover-close-btn"
 
-                const iframe = webview.shadowRoot.querySelector('iframe');
-                if (!iframe || !iframe.contentDocument) return false;
-
-                const btnFechar = iframe.contentDocument.querySelector('button.driver-popover-close-btn');
-                if (btnFechar) {
-                    btnFechar.click();
-                    return true;
-                }
-            } catch (e) {
-                return false;
-            }
-            return false;
-        }
-        """
-
-        tentativas = int(tempo_espera_ms / 500)
-        for _ in range(tentativas):
-            fechou = self.page.evaluate(script_fechar_tutorial)
-            if fechou:
-                print("  └─ [OK] Tutorial (driver-popover) fechado via Shadow DOM/JS!")
-                self.page.wait_for_timeout(500)
+        # 1. Tenta encontrar o elemento diretamente via Playwright (ele perfura Shadow DOM automaticamente)
+        try:
+            btn_global = self.page.locator(seletor_btn).first
+            if btn_global.is_visible(timeout=tempo_espera_ms):
+                btn_global.click(force=True)
+                print("  └─ [OK] Tutorial fechado na página principal/shadow DOM.")
+                self.page.wait_for_timeout(1000)
                 return
-            self.page.wait_for_timeout(500)
+        except Exception:
+            pass
 
-        print("  └─ [INFO] Nenhum tutorial ativo encontrado.")
+        # 2. Caso esteja isolado em contexto de Iframe/Webview do Protheus, percorre a lista de frames ativos
+        for frame in self.page.frames:
+            try:
+                btn_frame = frame.locator(seletor_btn).first
+                if btn_frame.is_visible(timeout=1000):
+                    btn_frame.click(force=True)
+                    print(f"  └─ [OK] Tutorial fechado dentro do frame: {frame.name or frame.url}")
+                    self.page.wait_for_timeout(1000)
+                    return
+            except Exception:
+                continue
+
+        # 3. Fallback via tecla 'Escape' (o driver.js por padrão fecha o popover ao pressionar ESC)
+        try:
+            self.page.keyboard.press("Escape")
+            print("  └─ [INFO] Tecla ESC enviada para fechar overlay de tutorial.")
+        except Exception:
+            pass
 
     def selecionar_menu_interno(self, nome_item: str):
         """Clica no menu lateral do PO UI e encerra o tutorial caso seja acionado."""
