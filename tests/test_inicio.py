@@ -1,4 +1,5 @@
 import pytest
+import conftest
 
 PERFIL = "INTEGRACAO"
 
@@ -24,6 +25,10 @@ def test_03_configurar_ambiente(config, environment_page, tirar_evidencia):
         filial=config["filial"],
         ambiente=config["ambiente"],
     )
+    
+    # Captura única e direta das informações do sistema armazenando na variável do conftest
+    dados_capturados = navigation_page.obter_informacoes_ambiente()
+    conftest.DADOS_SISTEMA["info_ambiente"] = dados_capturados
     tirar_evidencia(environment_page.page, "03_configuracao_ambiente")
 
 

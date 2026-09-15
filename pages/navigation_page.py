@@ -16,30 +16,71 @@ class NavigationPage:
         self.page = page
 
     def obter_informacoes_ambiente(self) -> str:
-    """Busca diretamente o texto do cabeçalho da aplicação."""
-    try:
-        # Script JS simples para pegar a legenda do cabeçalho (caption) independente do Shadow DOM
-        script = """
-        () => {
-            const el = document.querySelector('wa-panel, wa-button, [class*="dict-tbutton"]');
-            if (el) {
-                return el.getAttribute('caption') || el.innerText || '';
-            }
-            return document.body.innerText;
-        }
-        """
-        texto = self.page.evaluate(script)
-        if texto:
-            # Procura por padrões como TOTVS, Serviços, ORACLE, P12, etc., ou pega a primeira linha limpa
-            linhas = [l.strip() for l in texto.split('\n') if l.strip()]
-            for linha in linhas:
-                if any(k in linha for k in ["Serviços", "ORACLE", "Psh", "TOTVS", "COMP"]):
-                    return linha
-            if linhas:
-                return linhas[0]
-        return "Informação de ambiente capturada"
-    except Exception as e:
-        return f"Erro na captura: {str(e)}"
+      """
+      Captura o texto do cabeçalho do Protheus através da estrutura de Shadow DOM.
+      Caminho DOM: wa-panel.dict-tpanel -> wa-button.dict-tbutton -> shadow-root -> button -> span
+      """
+      try:
+          # Seletores encadeados compatíveis com o motor do Playwright para Shadow DOM
+          seletores = [
+              "wa-button.dict-tbutton span",
+              "wa-panel.dict-tpanel button span",
+              "wa-button[class*='dict-tbutton'] span",
+              "wa-panel button span",
+              ".dict-tbutton button span"
+          ]
+
+          # 1. Busca na página principal e em todos os frames/iframes abertos
+          contextos = [self.page] + list(self.page.frames)
+
+          for ctx in contextos:
+              for seletor in seletores:
+                  try:
+                      locator = ctx.locator(seletor)
+                      quantidade = locator.count()
+                      
+                      for i in range(quantidade):
+                          elem = locator.nth(i)
+                          if elem.is_visible():
+                              texto = elem.inner_text().strip()
+                              if texto and len(texto) > 3:
+                                  # Trata múltiplos espaços ou quebras de linha
+                                  texto_limpo = " ".join(texto.split())
+                                  return texto_limpo
+                  except Exception:
+                      continue
+
+          # 2. Fallback via JavaScript caso os seletores CSS diretos falhem
+          script_js = """
+          () => {
+              const painel = document.querySelector('wa-panel.dict-tpanel') || document.querySelector('wa-button.dict-tbutton');
+              if (painel) {
+                  // Tenta pegar pelo atributo caption ou innerText interno
+                  const caption = painel.getAttribute('caption');
+                  if (caption) return caption;
+                  
+                  if (painel.shadowRoot) {
+                      const btn = painel.shadowRoot.querySelector('button');
+                      if (btn) return btn.innerText || btn.textContent;
+                  }
+                  return painel.innerText;
+              }
+              return null;
+          }
+          """
+          
+          for ctx in contextos:
+              try:
+                  resultado_js = ctx.evaluate(script_js)
+                  if resultado_js and len(str(resultado_js).strip()) > 3:
+                      return " ".join(str(resultado_js).split()).strip()
+              except Exception:
+                  continue
+
+          return "Informação de ambiente não localizada na página"
+
+      except Exception as e:
+          return f"Erro na captura do ambiente: {str(e)}"
 
     def obter_banco_dados(self) -> str:
         """Alias mantido para compatibilidade."""
