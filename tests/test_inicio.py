@@ -33,6 +33,8 @@ def test_validar_inicializacao_e_navegacao(
   navigation_page.navegar(*config["menu"])
 
   smart_hub_page.selecionar_menu_interno("Carga Inicial")
+  
+  smart_hub_page.selecionar_filial_carga(config["filial"])
 
 
   # ASSERT / VALIDAÇÃO:
