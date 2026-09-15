@@ -98,7 +98,6 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
 
     failed = session.testsfailed
 
-    # Status corrigido: Se não houver falhas, é SUCESSO
     if failed > 0:
         status_geral = '<span style="color:#dc2626; font-weight:bold; background:#fee2e2; padding:4px 10px; border-radius:4px;">❌ FALHA (Erros Detectados)</span>'
     else:
@@ -117,18 +116,21 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
 
 
 def pytest_unconfigure(config):
-    """Substitui no arquivo HTML final o valor pendente pelo dado real capturado do sistema."""
+    """
+    Substitui no arquivo HTML final o texto "Pendente de execução" pelo valor real capturado.
+    Garante que mesmo se o HTML tiver sido gravado antes, a substituição ocorra em disco.
+    """
     caminho_html = getattr(config.option, "htmlpath", None)
     if caminho_html and os.path.exists(caminho_html):
         info_real = DADOS_SISTEMA.get("info_ambiente", "Não capturado")
-        if info_real != "Pendente de execução":
+
+        if info_real and info_real != "Pendente de execução":
             try:
                 with open(caminho_html, "r", encoding="utf-8") as f:
                     conteudo = f.read()
 
-                conteudo_atualizado = conteudo.replace(
-                    "Pendente de execução", info_real
-                )
+                # Substitui todas as variações possíveis onde a string possa ter sido renderizada
+                conteudo_atualizado = conteudo.replace("Pendente de execução", info_real)
 
                 with open(caminho_html, "w", encoding="utf-8") as f:
                     f.write(conteudo_atualizado)
@@ -142,14 +144,15 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     report = outcome.get_result()
 
-    # Tenta capturar a informação do ambiente se ainda estiver pendente ao finalizar o teste
+    # Tenta capturar a informação do ambiente sempre que uma fixture 'pagina_protheus' estiver ativa
     if DADOS_SISTEMA["info_ambiente"] == "Pendente de execução" and "pagina_protheus" in item.fixturenames:
         try:
             page = item.funcargs["pagina_protheus"]
-            nav = NavigationPage(page)
-            res = nav.obter_informacoes_ambiente()
-            if res and res != "Informação de ambiente não localizada na página":
-                DADOS_SISTEMA["info_ambiente"] = res
+            if page and not page.is_closed():
+                nav = NavigationPage(page)
+                res = nav.obter_informacoes_ambiente()
+                if res and res != "Informação de ambiente não localizada na página":
+                    DADOS_SISTEMA["info_ambiente"] = res
         except Exception:
             pass
 
@@ -195,7 +198,7 @@ def tirar_evidencia(request):
         if not page or page.is_closed():
             return
 
-        # Gatilho: Tenta capturar a informação do ambiente sempre que estiver na tela logada
+        # Tenta capturar o ambiente durante qualquer chamada de print (ex: nos testes 03, 04, etc.)
         if DADOS_SISTEMA["info_ambiente"] == "Pendente de execução":
             try:
                 nav = NavigationPage(page)
