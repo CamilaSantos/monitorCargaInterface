@@ -15,26 +15,27 @@ class NavigationPage:
     def __init__(self, page: Page):
         self.page = page
 
-    def obter_informacoes_ambiente(self) -> str:
+   def obter_informacoes_ambiente(self) -> str:
         """
-        Captura o texto do primeiro botão do cabeçalho do Protheus (informações do ambiente/banco),
-        desconsiderando botões utilitários como 'Log Off'.
+        Captura os botões da barra superior via Shadow DOM e concatena
+        o 1º botão (Ambiente/Banco) e o 3º botão (Empresa/Filial) no formato: 'Botão1 / Botão3'.
         """
         try:
             self.page.wait_for_timeout(2000)
 
             script_js = """
             () => {
-                function extrairTextoPrimeiroBotao(root) {
-                    if (!root) return null;
-                    
-                    // Seleciona todos os botões da barra que possuem a classe dict-tbutton ou estao em wa-panel
+                const botoesValidos = [];
+
+                function coletarBotoes(root) {
+                    if (!root) return;
+
+                    // Busca elementos de botão na ordem exata do DOM (esquerda para a direita)
                     const elementos = Array.from(root.querySelectorAll('wa-button.dict-tbutton, wa-panel.dict-tpanel, [class*="dict-tbutton"]'));
                     
                     for (let el of elementos) {
                         let text = el.getAttribute('caption') || el.innerText || el.textContent;
                         
-                        // Se estiver no shadowRoot do próprio wa-button
                         if ((!text || !text.trim()) && el.shadowRoot) {
                             const btnInterno = el.shadowRoot.querySelector('button, span');
                             if (btnInterno) {
@@ -43,28 +44,39 @@ class NavigationPage:
                         }
 
                         if (text) {
-                            text = text.trim();
-                            // Ignora o botão de Log Off e textos muito curtos
-                            if (text.length > 3 && !text.toLowerCase().includes('log off')) {
-                                return text;
+                            text = text.strip ? text.strip() : text.trim();
+                            // Guarda todos os botões visíveis da barra
+                            if (text.length > 0) {
+                                botoesValidos.push(text);
                             }
                         }
                     }
 
-                    // Se não encontrou no nível atual, procura dentro dos shadowRoots dos filhos
+                    // Trata Shadow DOMs aninhados
                     const todosComShadow = root.querySelectorAll('*');
                     for (let el of todosComShadow) {
                         if (el.shadowRoot) {
-                            let subText = extrairTextoPrimeiroBotao(el.shadowRoot);
-                            if (subText && !subText.toLowerCase().includes('log off')) {
-                                return subText;
-                            }
+                            coletarBotoes(el.shadowRoot);
                         }
                     }
-                    return null;
                 }
 
-                return extrairTextoPrimeiroBotao(document);
+                coletarBotoes(document);
+
+                // Garante a remoção de duplicatas mantendo a ordem de aparição na tela
+                const unicos = botoesValidos.filter((item, index) => botoesValidos.indexOf(item) === index);
+
+                if (unicos.length >= 3) {
+                    // Pega o 1º botão (índice 0) e o 3º botão (índice 2)
+                    const botao1 = unicos[0];
+                    const botao3 = unicos[2];
+                    return `${botao1} / ${botao3}`;
+                } else if (unicos.length > 0) {
+                    // Fallback caso encontre menos botões que o esperado
+                    return unicos[0];
+                }
+
+                return null;
             }
             """
 
@@ -73,7 +85,7 @@ class NavigationPage:
             for ctx in contextos:
                 try:
                     resultado = ctx.evaluate(script_js)
-                    if resultado and len(str(resultado).strip()) > 3:
+                    if resultado and len(str(resultado).strip()) > 2:
                         texto_limpo = " ".join(str(resultado).split()).strip()
                         return texto_limpo
                 except Exception:
@@ -82,7 +94,7 @@ class NavigationPage:
             return "Informação de ambiente não localizada na página"
 
         except Exception as e:
-            return f"Erro na captura do ambiente: {str(e)}"
+            return f"Erro na captura do ambiente: {str(e)}" 
 
     def obter_banco_dados(self) -> str:
         """Alias mantido para compatibilidade."""

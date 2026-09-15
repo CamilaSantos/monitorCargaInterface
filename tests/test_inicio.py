@@ -23,20 +23,13 @@ def test_03_autenticar_e_selecionar_ambiente(config, environment_page, navigatio
     environment_page.selecionar_ambiente(config["grupo"], config["filial"], config["ambiente"])
     tirar_evidencia(environment_page.page, "03_ambiente_selecionado")
 
-    # Captura a informação e atribui à variável do conftest
+    # Captura combinada (Botão 1 / Botão 3)
     resultado = navigation_page.obter_informacoes_ambiente()
     conftest.DADOS_SISTEMA["info_ambiente"] = resultado
 
-    # Imprime no terminal para fazermos a validação
     print("\n" + "=" * 60)
-    print(f"DEBUG AMBIENTE: {resultado}")
+    print(f"DEBUG AMBIENTE (BOTÃO 1 / BOTÃO 3): {resultado}")
     print("=" * 60 + "\n")
-
-    # 2. Imprime diretamente no CMD com destaque visual
-    print("\n" + "=" * 60)
-    print(f"DEBUG CAPTURA AMBIENTE: {resultado}")
-    print("=" * 60 + "\n")
-    tirar_evidencia(environment_page.page, "03_configuracao_ambiente")
 
 
 def test_04_navegar_menu(config, navigation_page, tirar_evidencia):
