@@ -17,15 +17,15 @@ class NavigationPage:
 
     def obter_informacoes_ambiente(self) -> str:
         """
-        Captura os botões válidos da barra superior via Shadow DOM, ignorando placeholders (ex: 'xxx'),
-        e concatena as informações de Ambiente/Banco e Empresa/Filial no formato: 'Ambiente / Empresa'.
+        Coleta os botões da barra superior ordenados da esquerda para a direita (frente para trás)
+        e retorna o 1º (Ambiente/Banco) e o 3º (Empresa/Filial).
         """
         try:
             self.page.wait_for_timeout(2000)
 
             script_js = """
             () => {
-                const botoesValidos = [];
+                const elementosColetados = [];
 
                 function coletarBotoes(root) {
                     if (!root) return;
@@ -44,15 +44,15 @@ class NavigationPage:
 
                         if (text) {
                             text = text.trim();
-                            
-                            // FILTRO: Ignora textos placeholders como 'xxx', 'Log Off' ou strings muito curtas
                             const textLower = text.toLowerCase();
-                            if (
-                                text.length > 3 && 
-                                !textLower.includes('log off') && 
-                                !textLower.includes('xxx')
-                            ) {
-                                botoesValidos.push(text);
+                            
+                            // Ignora Log Off, xxx e strings vazias/curtas
+                            if (text.length > 2 && !textLower.includes('log off') && !textLower.includes('xxx')) {
+                                const rect = el.getBoundingClientRect();
+                                elementosColetados.push({
+                                    texto: text,
+                                    left: rect.left
+                                });
                             }
                         }
                     }
@@ -67,16 +67,24 @@ class NavigationPage:
 
                 coletarBotoes(document);
 
-                // Remove duplicatas mantendo a ordem de aparição na tela
-                const unicos = botoesValidos.filter((item, index) => botoesValidos.indexOf(item) === index);
+                // ORDENAÇÃO DE FRENTE PARA TRÁS: ordena os elementos da esquerda para a direita (menor 'left' primeiro)
+                elementosColetados.sort((a, b) => a.left - b.left);
 
-                // Se houver 2 ou mais botões de negócio válidos
-                if (unicos.length >= 2) {
-                    const botaoAmbiente = unicos[0]; // Agora será o texto real (ex: 'Serviços ORACLE...')
-                    const botaoEmpresa = unicos[1];  // Agora será o grupo/filial (ex: 'Grupo Totvs 1 / Filial Niteroi')
-                    return `${botaoAmbiente} / ${botaoEmpresa}`;
-                } else if (unicos.length === 1) {
-                    return unicos[0];
+                // Extrai apenas os textos únicos mantendo a ordem da esquerda para a direita
+                const textosOrdenados = [];
+                for (let item of elementosColetados) {
+                    if (!textosOrdenados.includes(item.texto)) {
+                        textosOrdenados.push(item.texto);
+                    }
+                }
+
+                // Retorna o 1º botão (Ambiente) e o 3º botão (Empresa/Filial -> índice 2) se houver 3 ou mais
+                if (textosOrdenados.length >= 3) {
+                    return `${textosOrdenados[0]} / ${textosOrdenados[2]}`;
+                } else if (textosOrdenados.length === 2) {
+                    return `${textosOrdenados[0]} / ${textosOrdenados[1]}`;
+                } else if (textosOrdenados.length === 1) {
+                    return textosOrdenados[0];
                 }
 
                 return null;
