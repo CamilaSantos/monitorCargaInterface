@@ -21,7 +21,7 @@ class SmartHubPage:
       try:
         if (
             frame.locator(
-                "po-menu, .po-menu-container, po-menu-item, #driver-popover-item"
+                "po-menu, .po-menu-container, po-menu-item, .driver-popover-close-btn"
             ).count()
             > 0
         ):
@@ -34,67 +34,59 @@ class SmartHubPage:
       return iframe_element.content_frame
     return self.page
 
-  def fechar_tutorial_se_existir(self, tempo_espera_ms: int = 3000):
-    """Identifica o pop-up de tutorial/onboarding (driver.js) e clica no botão 'X' (fechar)."""
+  def fechar_tutorial_se_existir(self, tempo_espera_ms: int = 5000):
+    """Localiza o botão 'X' (button.driver-popover-close-btn) do driver.js e realiza o clique."""
     frame = self._obter_frame_po_ui()
 
-    # Seletor do popover do driver.js
-    popover = frame.locator(
-        "#driver-popover-item, div[id*='driver-popover'], .driver-popover"
-    )
+    # Seletor exato extraído do DOM da imagem
+    btn_fechar = frame.locator("button.driver-popover-close-btn").first
 
     try:
-      # Aguarda uma breve Janela para ver se o onboarding aparece na tela
-      popover.first.wait_for(state="visible", timeout=tempo_espera_ms)
+      # Aguarda o botão do fechar tutorial surgir na tela
+      btn_fechar.wait_for(state="visible", timeout=tempo_espera_ms)
 
-      # Mapeamento dos seletores do botão fechar ('X')
-      btn_fechar = popover.locator(
-          ".driver-close-btn, button.driver-close-btn, [aria-label='Close'],"
-          " .driver-popover-close-btn"
-      ).first
-
-      if btn_fechar.count() > 0 and btn_fechar.is_visible():
+      if btn_fechar.is_visible():
         btn_fechar.click(force=True)
-        print("  └─ [OK] Tutorial/Onboarding fechado com sucesso.")
+        print("  └─ [OK] Tutorial (driver-popover) fechado com sucesso.")
 
-        # Aguarda o elemento sumir e a tela reestabilizar
+        # Aguarda a animação de fade do overlay desaparecer
         self.page.wait_for_timeout(1000)
     except PlaywrightTimeoutError:
-      # Caso o usuário já tenha acessado anteriormente e o tutorial não apareça
+      # Caso o usuário já tenha acessado e o tutorial não seja exibido
       pass
 
   def selecionar_menu_interno(self, nome_item: str):
-  """Clica nos itens do menu lateral do PO UI e trata pop-ups de tutorial de forma rápida e dinâmica."""
-  nome_limpo = sanitizar_texto(nome_item)
-  print(f"\n[SMART HUB] Navegando no menu interno para: '{nome_limpo}'")
+    """Clica no menu lateral do PO UI e encerra o tutorial caso seja acionado."""
+    nome_limpo = sanitizar_texto(nome_item)
+    print(f"\n[SMART HUB] Navegando no menu interno para: '{nome_limpo}'")
 
-  frame = self._obter_frame_po_ui()
-  padrao_regex = re.compile(rf"^\s*{re.escape(nome_limpo)}\s*$", re.IGNORECASE)
+    frame = self._obter_frame_po_ui()
+    padrao_regex = re.compile(rf"^\s*{re.escape(nome_limpo)}\s*$", re.IGNORECASE)
 
-  # Busca pelo seletor do menu no PO UI
-  candidatos = frame.locator("po-menu-item, .po-menu-item-link, a").filter(
-      has_text=padrao_regex
-  )
-
-  # Fallback de busca parcial caso não encontre pelo padrão exato
-  if candidatos.count() == 0:
     candidatos = frame.locator("po-menu-item, .po-menu-item-link, a").filter(
-        has_text=nome_limpo
+        has_text=padrao_regex
     )
 
-  try:
-    # Aguarda o elemento do menu ficar visível na tela (com limite de 10s), clicando assim que estiver pronto
-    elem = candidatos.first
-    elem.wait_for(state="visible", timeout=10000)
-    elem.scroll_into_view_if_needed()
-    elem.click(force=True)
-    print(f"  └─ [OK] Item '{nome_limpo}' clicado no Smart Hub.")
+    if candidatos.count() == 0:
+      candidatos = frame.locator("po-menu-item, .po-menu-item-link, a").filter(
+          has_text=nome_limpo
+      )
 
-    # Tenta fechar o tutorial de onboarding imediatamente após o clique
-    self.fechar_tutorial_se_existir()
+    try:
+      elem = candidatos.first
+      elem.wait_for(state="visible", timeout=10000)
+      elem.scroll_into_view_if_needed()
+      elem.click(force=True)
+      print(f"  └─ [OK] Item '{nome_limpo}' clicado no Smart Hub.")
 
-  except Exception as err:
-    raise RuntimeError(
-        f"❌ ITEM DO SMART HUB NÃO ENCONTRADO OU INDISPONÍVEL:"
-        f" '{nome_limpo}'. Erro: {err}"
-    )
+      # Aguarda 1.5s para renderização do popover do driver.js
+      self.page.wait_for_timeout(1500)
+
+      # Trata e fecha a janela de tutorial
+      self.fechar_tutorial_se_existir()
+
+    except Exception as err:
+      raise RuntimeError(
+          f"❌ ITEM DO SMART HUB NÃO ENCONTRADO OU INDISPONÍVEL:"
+          f" '{nome_limpo}'. Erro: {err}"
+      )
