@@ -28,7 +28,13 @@ def test_03_configurar_ambiente(config, environment_page, tirar_evidencia):
     
     # Captura única e direta das informações do sistema armazenando na variável do conftest
     dados_capturados = navigation_page.obter_informacoes_ambiente()
-    conftest.DADOS_SISTEMA["info_ambiente"] = dados_capturados
+    resultado = navigation_page.obter_informacoes_ambiente()
+    conftest.DADOS_SISTEMA["info_ambiente"] = resultado
+
+    # 2. Imprime diretamente no CMD com destaque visual
+    print("\n" + "=" * 60)
+    print(f"DEBUG CAPTURA AMBIENTE: {resultado}")
+    print("=" * 60 + "\n")
     tirar_evidencia(environment_page.page, "03_configuracao_ambiente")
 
 
