@@ -1,5 +1,6 @@
 import os
 import time
+import json
 from dotenv import load_dotenv
 import pytest
 
@@ -27,6 +28,14 @@ def carregar_css_customizado():
             conteudo_css = f.read()
         return f"<style>\n{conteudo_css}\n</style>"
     return ""
+
+
+def registrar_info_ambiente(info: str, config=None):
+    """Atualiza o dicionário global e a estrutura interna de metadata do pytest."""
+    if info and info != "Informação de ambiente não localizada na página" and info != "Pendente de execução":
+        DADOS_SISTEMA["info_ambiente"] = info
+        if config and hasattr(config, "_metadata"):
+            config._metadata["Informações do Sistema (Empresa/Banco/Build)"] = info
 
 
 # ==============================================================================
@@ -117,8 +126,8 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
 
 def pytest_unconfigure(config):
     """
-    Substitui no arquivo HTML final o texto "Pendente de execução" pelo valor real capturado.
-    Garante que mesmo se o HTML tiver sido gravado antes, a substituição ocorra em disco.
+    Atualiza o arquivo HTML gravado substituindo qualquer versão (textual ou JSON escapada)
+    do valor "Pendente de execução" pelas informações reais capturadas.
     """
     caminho_html = getattr(config.option, "htmlpath", None)
     if caminho_html and os.path.exists(caminho_html):
@@ -129,8 +138,12 @@ def pytest_unconfigure(config):
                 with open(caminho_html, "r", encoding="utf-8") as f:
                     conteudo = f.read()
 
-                # Substitui todas as variações possíveis onde a string possa ter sido renderizada
+                # Variações de substituição para suportar renderização HTML e JSON/Unicode do pytest-html v4
                 conteudo_atualizado = conteudo.replace("Pendente de execução", info_real)
+                conteudo_atualizado = conteudo_atualizado.replace(
+                    json.dumps("Pendente de execução")[1:-1], 
+                    json.dumps(info_real)[1:-1]
+                )
 
                 with open(caminho_html, "w", encoding="utf-8") as f:
                     f.write(conteudo_atualizado)
@@ -144,15 +157,14 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     report = outcome.get_result()
 
-    # Tenta capturar a informação do ambiente sempre que uma fixture 'pagina_protheus' estiver ativa
+    # Tenta capturar o ambiente no final de cada etapa de teste
     if DADOS_SISTEMA["info_ambiente"] == "Pendente de execução" and "pagina_protheus" in item.fixturenames:
         try:
             page = item.funcargs["pagina_protheus"]
             if page and not page.is_closed():
                 nav = NavigationPage(page)
                 res = nav.obter_informacoes_ambiente()
-                if res and res != "Informação de ambiente não localizada na página":
-                    DADOS_SISTEMA["info_ambiente"] = res
+                registrar_info_ambiente(res, item.config)
         except Exception:
             pass
 
@@ -198,13 +210,12 @@ def tirar_evidencia(request):
         if not page or page.is_closed():
             return
 
-        # Tenta capturar o ambiente durante qualquer chamada de print (ex: nos testes 03, 04, etc.)
+        # Gatilho: Tenta capturar o ambiente a cada print tirado durante os testes
         if DADOS_SISTEMA["info_ambiente"] == "Pendente de execução":
             try:
                 nav = NavigationPage(page)
                 res = nav.obter_informacoes_ambiente()
-                if res and res != "Informação de ambiente não localizada na página":
-                    DADOS_SISTEMA["info_ambiente"] = res
+                registrar_info_ambiente(res, request.config)
             except Exception:
                 pass
 
