@@ -17,90 +17,47 @@ class NavigationPage:
 
     def obter_informacoes_ambiente(self) -> str:
         """
-        Coleta os botões da barra superior ordenados da esquerda para a direita (frente para trás)
-        e retorna o 1º (Ambiente/Banco) e o 3º (Empresa/Filial).
+        Captura o texto do primeiro botão (Ambiente/Banco) e do quarto botão (Empresa/Filial)
+        da barra de ferramentas superior.
         """
         try:
             self.page.wait_for_timeout(2000)
 
-            script_js = """
-            () => {
-                const elementosColetados = [];
-
-                function coletarBotoes(root) {
-                    if (!root) return;
-
-                    const elementos = Array.from(root.querySelectorAll('wa-button.dict-tbutton, wa-panel.dict-tpanel, [class*="dict-tbutton"]'));
-                    
-                    for (let el of elementos) {
-                        let text = el.getAttribute('caption') || el.innerText || el.textContent;
-                        
-                        if ((!text || !text.trim()) && el.shadowRoot) {
-                            const btnInterno = el.shadowRoot.querySelector('button, span');
-                            if (btnInterno) {
-                                text = btnInterno.innerText || btnInterno.textContent;
-                            }
-                        }
-
-                        if (text) {
-                            text = text.trim();
-                            const textLower = text.toLowerCase();
-                            
-                            // Ignora Log Off, xxx e strings vazias/curtas
-                            if (text.length > 2 && !textLower.includes('log off') && !textLower.includes('xxx')) {
-                                const rect = el.getBoundingClientRect();
-                                elementosColetados.push({
-                                    texto: text,
-                                    left: rect.left
-                                });
-                            }
-                        }
-                    }
-
-                    const todosComShadow = root.querySelectorAll('*');
-                    for (let el of todosComShadow) {
-                        if (el.shadowRoot) {
-                            coletarBotoes(el.shadowRoot);
-                        }
-                    }
-                }
-
-                coletarBotoes(document);
-
-                // ORDENAÇÃO DE FRENTE PARA TRÁS: ordena os elementos da esquerda para a direita (menor 'left' primeiro)
-                elementosColetados.sort((a, b) => a.left - b.left);
-
-                // Extrai apenas os textos únicos mantendo a ordem da esquerda para a direita
-                const textosOrdenados = [];
-                for (let item of elementosColetados) {
-                    if (!textosOrdenados.includes(item.texto)) {
-                        textosOrdenados.push(item.texto);
-                    }
-                }
-
-                // Retorna o 1º botão (Ambiente) e o 3º botão (Empresa/Filial -> índice 2) se houver 3 ou mais
-                if (textosOrdenados.length >= 3) {
-                    return `${textosOrdenados[0]} / ${textosOrdenados[2]}`;
-                } else if (textosOrdenados.length === 2) {
-                    return `${textosOrdenados[0]} / ${textosOrdenados[1]}`;
-                } else if (textosOrdenados.length === 1) {
-                    return textosOrdenados[0];
-                }
-
-                return null;
-            }
-            """
-
             contextos = [self.page] + list(self.page.frames)
 
             for ctx in contextos:
-                try:
-                    resultado = ctx.evaluate(script_js)
-                    if resultado and len(str(resultado).strip()) > 2:
-                        texto_limpo = " ".join(str(resultado).split()).strip()
-                        return texto_limpo
-                except Exception:
-                    continue
+                # O Playwright atravessa o Shadow DOM nativamente com 'wa-button.dict-tbutton'
+                botoes = ctx.locator("wa-button.dict-tbutton")
+                total = botoes.count()
+
+                if total >= 4:
+                    # 1. Pega o atributo 'caption' ou texto do 1º botão (índice 0)
+                    btn1 = botoes.nth(0)
+                    texto1 = btn1.get_attribute("caption") or btn1.inner_text()
+
+                    # 2. Pega o atributo 'caption' ou texto do 4º botão (índice 3 - Empresa/Filial)
+                    btn4 = botoes.nth(3)
+                    texto4 = btn4.get_attribute("caption") or btn4.inner_text()
+
+                    texto1 = sanitizar_texto(texto1)
+                    texto4 = sanitizar_texto(texto4)
+
+                    if texto1 and texto4:
+                        return f"{texto1} / {texto4}"
+
+                # Fallback via varredura direta caso o count retorne parcial
+                elif total > 0:
+                    textos = []
+                    for i in range(total):
+                        t = botoes.nth(i).get_attribute("caption") or botoes.nth(i).inner_text()
+                        t = sanitizar_texto(t)
+                        if t and not re.search(r"log\s*off", t, re.IGNORECASE):
+                            textos.append(t)
+                    
+                    if len(textos) >= 2:
+                        return f"{textos[0]} / {textos[-1]}"
+                    elif len(textos) == 1:
+                        return textos[0]
 
             return "Informação de ambiente não localizada na página"
 
