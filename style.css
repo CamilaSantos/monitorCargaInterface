@@ -439,28 +439,34 @@ h1 {
    REGRAS EXCLUSIVAS PARA GERAÇÃO DO PDF / IMPRESSÃO
    ============================================================================== */
 @media print {
-    /* Esconde botões e filtros que não devem sair no PDF */
+    /* Oculta botões de controle e navegação no PDF */
     .btn-export-pdf,
     #image-uploader,
+    .filter,
     .controls,
-    #filter {
+    nav {
         display: none !important;
     }
 
-    /* Garante que o conteúdo expansível fique visível */
-    .extra, 
-    .extra-wrapper, 
-    .logcontainer,
-    details[open] {
+    /* Força a exibição de todos os blocos de detalhes de testes */
+    details {
         display: block !important;
-        visibility: visible !important;
     }
 
-    /* Quebra de página adequada para os cards de imagem */
+    details[open] summary ~ * {
+        display: block !important;
+    }
+
+    /* Ajuste de margens e quebra de páginas */
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 12pt;
+    }
+
     .evidencia-card {
         page-break-inside: avoid;
         break-inside: avoid;
-        margin-top: 10px;
         margin-bottom: 15px;
     }
 
