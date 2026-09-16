@@ -473,6 +473,7 @@ div.extra {
     border: 1px solid #cbd5e1 !important;
     border-radius: 8px !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04) !important;
+    text-align: center; /* Centraliza a imagem e o título dentro do card */
 }
 
 .evidencia-titulo {
@@ -480,15 +481,17 @@ div.extra {
     color: #1e293b !important;
     margin-bottom: 10px !important;
     font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    text-align: left; /* Mantém o texto da legenda alinhado à esquerda */
 }
 
-/* Imagem da Evidência expandida ao máximo na tela */
+/* Imagem com tamanho controlado e centralizada */
 .evidencia-img {
-    width: 100% !important;
-    max-width: 100% !important;
+    width: auto !important;
+    max-width: 70% !important; /* Ajuste aqui o tamanho máximo (ex: 60%, 70% ou 700px) */
+    max-height: 450px !important; /* Limita a altura para não esticar verticalmente */
     height: auto !important;
     display: block !important;
-    margin: 8px 0 0 0 !important;
+    margin: 10px auto 0 auto !important; /* Centraliza a imagem no card */
     border: 1px solid #94a3b8 !important;
     border-radius: 6px !important;
     cursor: pointer;
@@ -534,8 +537,9 @@ div.extra {
 
     /* Redimensiona a imagem para caber perfeitamente na folha impressa */
     .evidencia-img {
-        width: 100% !important;
-        max-width: 100% !important;
+        max-width: 65% !important; /* Mantém a imagem proporcional e menor na folha A4 */
+        max-height: 400px !important;
         height: auto !important;
+        margin: 10px auto !important;
     }
 }
