@@ -436,42 +436,63 @@ h1 {
 }
 
 /* ==============================================================================
-   REGRAS EXCLUSIVAS PARA GERAÇÃO DO PDF / IMPRESSÃO
+   FORÇA A CÉLULA DE EVIDÊNCIAS A OCUPAR TODA A LARGURA DA TABELA
+   ============================================================================== */
+
+/* Faz a linha/célula extra ocupar 100% do espaço da tabela em vez de ficar espremida na 1ª coluna */
+td.extra, 
+.extra-container, 
+.logcontainer {
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-column: 1 / -1 !important; /* Para layouts CSS Grid internos do pytest-html */
+    display: block !important;
+}
+
+/* Garante que o card da evidência e a imagem fiquem grandes e legíveis */
+.evidencia-card {
+    width: 100% !important;
+    box-sizing: border-box;
+    margin: 15px 0 !important;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+.evidencia-img {
+    width: 100% !important;
+    max-width: 1000px !important; /* Ajusta a largura máxima para dar ótima visibilidade */
+    height: auto !important;
+    display: block;
+    margin: 10px 0 0 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+}
+
+/* ==============================================================================
+   REGRAS ESPECÍFICAS PARA IMPRESSÃO / SALVAR EM PDF
    ============================================================================== */
 @media print {
-    /* Oculta botões de controle e navegação no PDF */
+    /* Oculta botões, filtros e caixas vazias de log */
     .btn-export-pdf,
     #image-uploader,
-    .filter,
     .controls,
-    nav {
+    #filter,
+    .log {
         display: none !important;
     }
 
-    /* Força a exibição de todos os blocos de detalhes de testes */
-    details {
-        display: block !important;
+    /* Expande a célula contêiner para ocupar toda a folha */
+    tr.extra-row, 
+    td.extra {
+        display: table-cell !important;
+        width: 100% !important;
     }
 
-    details[open] summary ~ * {
-        display: block !important;
-    }
-
-    /* Ajuste de margens e quebra de páginas */
-    body {
-        background: #ffffff !important;
-        color: #000000 !important;
-        font-size: 12pt;
-    }
-
+    /* Evita quebras de página no meio de uma imagem de evidência */
     .evidencia-card {
-        page-break-inside: avoid;
-        break-inside: avoid;
-        margin-bottom: 15px;
-    }
-
-    .evidencia-img {
-        max-width: 100% !important;
-        height: auto !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
     }
 }

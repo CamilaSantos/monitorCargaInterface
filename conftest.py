@@ -3,7 +3,6 @@ import time
 import json
 from dotenv import load_dotenv
 import pytest
-from playwright.sync_api import sync_playwright  # Importação adicionada
 
 from pages.program_page import ProgramPage
 from pages.login_page import LoginPage
@@ -13,9 +12,6 @@ from pages.smart_hub_page import SmartHubPage
 
 load_dotenv()
 
-
-
-
 TIMEOUT_PADRAO = int(os.getenv("PROTHEUS_TIMEOUT", "60000"))
 CAMINHO_STYLE_CSS = os.path.join(os.path.dirname(__file__), "style.css")
 
@@ -24,54 +20,6 @@ DADOS_SISTEMA = {
     "info_ambiente": "Pendente de execução"
 }
 
-def pytest_unconfigure(config):
-    """
-    Atualiza o arquivo HTML gravado substituindo qualquer versão 
-    do valor "Pendente de execução" pelas informações reais capturadas
-    e gera automaticamente uma cópia do relatório em PDF.
-    """
-    caminho_html = getattr(config.option, "htmlpath", None)
-    if caminho_html and os.path.exists(caminho_html):
-        info_real = DADOS_SISTEMA.get("info_ambiente", "Não capturado")
-
-        # 1. Atualização dos Metadados no HTML
-        if info_real and info_real != "Pendente de execução":
-            try:
-                with open(caminho_html, "r", encoding="utf-8") as f:
-                    conteudo = f.read()
-
-                conteudo_atualizado = conteudo.replace("Pendente de execução", info_real)
-                conteudo_atualizado = conteudo_atualizado.replace(
-                    json.dumps("Pendente de execução")[1:-1], 
-                    json.dumps(info_real)[1:-1]
-                )
-
-                with open(caminho_html, "w", encoding="utf-8") as f:
-                    f.write(conteudo_atualizado)
-            except Exception:
-                pass
-
-        # 2. Conversão Automática do Relatório HTML em PDF
-        try:
-            caminho_pdf = caminho_html.replace(".html", ".pdf")
-            caminho_absoluto_html = os.path.abspath(caminho_html)
-            url_arquivo = f"file://{caminho_absoluto_html}"
-
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
-                page.goto(url_arquivo, wait_until="networkidle")
-                
-                # Gera o PDF preservando o plano de fundo e imagens de evidências
-                page.pdf(
-                    path=caminho_pdf,
-                    format="A4",
-                    print_background=True,
-                    margin={"top": "10mm", "bottom": "10mm", "left": "10mm", "right": "10mm"}
-                )
-                browser.close()
-        except Exception:
-            pass
 
 def carregar_css_customizado():
     """Lê o arquivo style.css do projeto e encapsula em uma tag <style>."""
@@ -180,29 +128,28 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
 
         <script>
         function abrirEImprimirPDF() {{
-            // 1. Localiza todos os elementos clicáveis da tabela do pytest-html v4 para expandir o conteúdo
+            // 1. Expande todas as linhas e sanfonas de testes no relatório
             const linhasColapsaveis = document.querySelectorAll('tr.collapsible, tr.results-table-row, .log-expander, details');
             
             linhasColapsaveis.forEach(el => {{
                 if (el.tagName.toLowerCase() === 'details') {{
                     el.setAttribute('open', 'true');
                 }} else {{
-                    // Simula o clique na linha para expandir a área de evidência
                     el.click();
                 }}
             }});
 
-            // 2. Força a exibição de contêineres que possam permanecer ocultos via estilo
-            const extras = document.querySelectorAll('.extra, .extra-wrapper, .logcontainer');
-            extras.forEach(el => {{
-                el.style.display = 'block';
-                el.style.visibility = 'visible';
-            }});
-
-            // 3. Aguarda a montagem dos elementos no DOM antes de abrir a janela de impressão
+            // 2. Ajusta a célula 'extra' das imagens para ocupar as 4 colunas da tabela (largura total)
             setTimeout(() => {{
+                const celulasExtra = document.querySelectorAll('td.extra');
+                celulasExtra.forEach(td => {{
+                    td.setAttribute('colspan', '4');
+                    td.style.width = '100%';
+                }});
+
+                // 3. Abre a caixa de diálogo de impressão nativa
                 window.print();
-            }}, 500);
+            }}, 400);
         }}
         </script>
         """
@@ -211,8 +158,8 @@ def pytest_html_results_summary(prefix, summary, postfix, session):
 
 def pytest_unconfigure(config):
     """
-    Atualiza o arquivo HTML gravado substituindo qualquer versão (textual ou JSON escapada)
-    do valor "Pendente de execução" pelas informações reais capturadas.
+    Substitui no arquivo HTML gravado a string "Pendente de execução" 
+    pelas informações reais de ambiente obtidas durante o teste.
     """
     caminho_html = getattr(config.option, "htmlpath", None)
     if caminho_html and os.path.exists(caminho_html):
@@ -223,7 +170,6 @@ def pytest_unconfigure(config):
                 with open(caminho_html, "r", encoding="utf-8") as f:
                     conteudo = f.read()
 
-                # Variações de substituição para suportar renderização HTML e JSON/Unicode do pytest-html v4
                 conteudo_atualizado = conteudo.replace("Pendente de execução", info_real)
                 conteudo_atualizado = conteudo_atualizado.replace(
                     json.dumps("Pendente de execução")[1:-1], 
@@ -242,7 +188,7 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     report = outcome.get_result()
 
-    # Tenta capturar o ambiente no final de cada etapa de teste
+    # Tenta capturar o ambiente ao final de cada execução de teste
     if DADOS_SISTEMA["info_ambiente"] == "Pendente de execução" and "pagina_protheus" in item.fixturenames:
         try:
             page = item.funcargs["pagina_protheus"]
@@ -295,7 +241,6 @@ def tirar_evidencia(request):
         if not page or page.is_closed():
             return
 
-        # Gatilho: Tenta capturar o ambiente a cada print tirado durante os testes
         if DADOS_SISTEMA["info_ambiente"] == "Pendente de execução":
             try:
                 nav = NavigationPage(page)
